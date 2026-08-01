@@ -60,39 +60,9 @@
   <div class="panel" id="sidePanel">
     <h3>🌐 Chơi Cùng Bạn Bè</h3>
     <div id="onlineIdle">
-
       <div class="remote-tab-block">
-        <h4>⚡ Trực tiếp (P2P, thời gian thực)</h4>
-        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Không cần server. Một người tạo phòng và gửi 1 đoạn mã ngắn cho người kia, người kia dán vào rồi gửi lại mã trả lời — sau đó mọi nước đi hiện ngay lập tức, như chơi trực tiếp.</div>
-
-        <div class="action-row">
-          <button class="action-btn" id="p2pHostBtn">🔴 Tạo phòng (Host)</button>
-        </div>
-        <div id="p2pHostBox" style="display:none;">
-          <div class="sub" style="font-size:12px; margin-top:8px;">1. Gửi mã mời này cho đối thủ:</div>
-          <textarea id="p2pOfferCode" class="p2p-textarea" readonly rows="3"></textarea>
-          <button class="action-btn" id="p2pCopyOffer" style="width:100%;">📋 Sao chép mã mời</button>
-          <div class="sub" style="font-size:12px; margin-top:10px;">2. Dán mã trả lời của đối thủ vào đây:</div>
-          <textarea id="p2pAnswerInput" class="p2p-textarea" rows="3" placeholder="Dán mã trả lời..."></textarea>
-          <button class="action-btn" id="p2pConnectBtn" style="width:100%;">🔗 Kết nối</button>
-        </div>
-
-        <div class="sub" style="font-size:12px; margin-top:14px;">Hoặc dán mã mời bạn nhận được để vào phòng:</div>
-        <textarea id="p2pOfferInput" class="p2p-textarea" rows="3" placeholder="Dán mã mời từ host..."></textarea>
-        <div class="action-row">
-          <button class="action-btn" id="p2pGuestBtn">⚫ Vào phòng (Guest)</button>
-        </div>
-        <div id="p2pGuestBox" style="display:none;">
-          <div class="sub" style="font-size:12px; margin-top:8px;">Gửi mã trả lời này lại cho host:</div>
-          <textarea id="p2pAnswerCode" class="p2p-textarea" readonly rows="3"></textarea>
-          <button class="action-btn" id="p2pCopyAnswer" style="width:100%;">📋 Sao chép mã trả lời</button>
-        </div>
-        <div class="online-status" id="p2pStatus"></div>
-      </div>
-
-      <div class="remote-tab-block" style="margin-top:18px;">
-        <h4>🔥 Firebase (thời gian thực, ổn định hơn)</h4>
-        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Đồng bộ tức thì như P2P nhưng không bị mạng công ty/4G chặn. Cần tạo 1 project Firebase miễn phí và dán config vào <code>config.json</code> một lần duy nhất — xem hướng dẫn trong README.</div>
+        <h4>🔥 Chơi Trực Tuyến (Firebase)</h4>
+        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Thời gian thực. Cần tạo 1 project Firebase miễn phí và dán config vào <code>config.json</code> một lần duy nhất — xem hướng dẫn trong README.</div>
         <div class="action-row">
           <button class="action-btn" id="fbCreateRoomBtn">➕ Tạo phòng</button>
         </div>
@@ -102,37 +72,17 @@
         </div>
         <div class="online-status" id="fbStatus"></div>
       </div>
-
-      <div class="remote-tab-block" style="margin-top:18px;">
-        <h4>📡 Qua file (không cần mạng ổn định)</h4>
-        <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Mỗi lượt xuất ra 1 file nhỏ, gửi qua Zalo/Messenger/Email. Không thời gian thực nhưng luôn hoạt động dù mạng chập chờn.</div>
-        <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Bạn muốn cầm quân nào?</div>
-        <div class="action-row">
-          <button class="action-btn" id="pickRedBtn">🔴 Chơi Đỏ</button>
-          <button class="action-btn" id="pickBlackBtn">⚫ Chơi Đen</button>
-        </div>
-      </div>
     </div>
 
     <div id="onlineActive" style="display:none;">
       <div class="room-code-box">
         <div class="room-code-label">
           Bạn đang cầm quân
-          <span class="killmode-active-badge" id="p2pLiveBadge" style="display:none;">TRỰC TIẾP</span>
-          <span class="killmode-active-badge" id="fbLiveBadge" style="display:none;">TRỰC TIẾP</span>
+          <span class="killmode-active-badge" id="onlineLiveBadge">TRỰC TIẾP</span>
         </div>
         <div class="room-code" id="roomCodeDisplay">Đỏ</div>
       </div>
       <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
-      <div id="fileExchangeControls">
-        <div class="action-row">
-          <button class="action-btn" id="exportMoveBtn">⬇ Xuất file lượt đi</button>
-        </div>
-        <div class="action-row">
-          <button class="action-btn" id="importMoveBtn">⬆ Nhập file đối thủ</button>
-        </div>
-        <input type="file" id="importMoveFileInput" accept="application/json,.json" style="display:none;">
-      </div>
       <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">🚪 Kết thúc phiên</button>
     </div>
     <div class="online-status" id="onlineStatus"></div>
