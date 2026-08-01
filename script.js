@@ -334,12 +334,6 @@ let state = {
 
 // WebRTC peer-connection state (kept outside `state` since it holds live
 // browser objects, not serialisable game data).
-let p2p = { pc:null, channel:null, role:null };
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:global.stun.twilio.com:3478' }
-];
-
 // Firebase Realtime Database connection state (only usable once
 // config.json's "firebase" block is filled in — see README).
 let fb = { app:null, db:null, roomRef:null, room:null };
@@ -708,7 +702,6 @@ function clearSelection(){
 }
 
 function doMove(from, to, opts={}){
-  const sendP2P = opts.sendP2P !== false;
   const movingPiece = state.board[from.r][from.c];
   const captured = state.board[to.r][to.c];
 
@@ -738,12 +731,7 @@ function doMove(from, to, opts={}){
 
   if(state.online.active){
     showOnlineActive();
-    if(state.online.transport==='p2p' && sendP2P && p2p.channel && p2p.channel.readyState==='open'){
-      p2p.channel.send(JSON.stringify({type:'move', from, to}));
-    }
-    if(state.online.transport==='firebase' && sendP2P){
-      fbPushState();
-    }
+    fbPushState();
   }
 
   if(!state.gameOver && !state.online.active && state.mode!=='pvp' && state.turn!==state.humanColor){
@@ -953,15 +941,15 @@ function flashStatus(text, isWarn){
   setTimeout(()=>{ if(el.textContent===text){ el.textContent=''; el.classList.remove('warn','live'); } }, 4000);
 }
 
-/* ---------------- Remote play: shared setup for both transports ----------------
-   "file"  = turn-by-turn exported .json files (always works, not real-time)
-   "p2p"   = direct WebRTC data channel (real-time, no server, needs a
-             one-time copy/paste of a connection code to establish) */
+/* ---------------- Remote play: Firebase Realtime Database (real-time) ----------------
+   Requires config.json's "firebase" block to be filled in with your own
+   project's config (see README) — the buttons simply explain that if
+   it's missing. */
 
-function startRemoteGame(color, transport){
+function startRemoteGame(color){
   state.online.active = true;
   state.online.color = color;
-  state.online.transport = transport;
+  state.online.transport = 'firebase';
   state.mode = 'pvp';
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='pvp'));
   updateCheatPanelVisibility();
@@ -985,205 +973,17 @@ function startRemoteGame(color, transport){
   showOnlineActive();
 }
 
-function pickColor(color){
-  startRemoteGame(color, 'file');
-}
-
 function showOnlineActive(){
   document.getElementById('onlineIdle').style.display = 'none';
   document.getElementById('onlineActive').style.display = '';
   document.getElementById('roomCodeDisplay').textContent = state.online.color==='red' ? 'Đỏ' : 'Đen';
 
-  const transport = state.online.transport;
-  document.getElementById('fileExchangeControls').style.display = transport==='file' ? '' : 'none';
-  document.getElementById('p2pLiveBadge').style.display = transport==='p2p' ? '' : 'none';
-  document.getElementById('fbLiveBadge').style.display = transport==='firebase' ? '' : 'none';
-
-  const roleLabel = document.getElementById('onlineRoleLabel');
-  if(transport==='p2p'){
-    roleLabel.textContent = state.turn===state.online.color
-      ? 'Đến lượt bạn — cứ đi, đối thủ sẽ thấy ngay.'
-      : 'Đang chờ đối thủ đi (thời gian thực).';
-  } else if(transport==='firebase'){
-    const base = state.turn===state.online.color
-      ? 'Đến lượt bạn — cứ đi, đối thủ sẽ thấy ngay.'
-      : 'Đang chờ đối thủ đi (thời gian thực qua Firebase).';
-    roleLabel.textContent = state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
-  } else {
-    roleLabel.textContent = state.turn===state.online.color
-      ? 'Đến lượt bạn — đi xong hãy xuất file và gửi cho đối thủ.'
-      : 'Đang chờ file nước đi từ đối thủ.';
-  }
+  const base = state.turn===state.online.color
+    ? 'Đến lượt bạn — cứ đi, đối thủ sẽ thấy ngay.'
+    : 'Đang chờ đối thủ đi (thời gian thực).';
+  document.getElementById('onlineRoleLabel').textContent =
+    state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
 }
-
-function exportMove(){
-  if(!state.online.active) return;
-  downloadJSON(`co-tuong-nuoc-di-${Date.now()}.json`, serializeGame());
-  flashStatus('⬇ Đã xuất file — gửi file này cho đối thủ.', false);
-}
-
-function importMove(){
-  document.getElementById('importMoveFileInput').click();
-}
-
-function handleImportMoveFile(file){
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const data = JSON.parse(reader.result);
-      if(!data || data.kind!=='co-tuong-save' || !Array.isArray(data.board)) throw new Error('bad-format');
-      if(!state.online.active){
-        // First file received: auto-join remote play as whichever colour is due to move.
-        state.online.active = true;
-        state.online.color = data.turn;
-        state.online.transport = 'file';
-      }
-      restoreGameData(data);
-      updateCheatPanelVisibility();
-      showOnlineActive();
-      flashStatus('⬆ Đã nhập nước đi của đối thủ.', false);
-    }catch(err){
-      flashStatus('File này không đúng định dạng ván cờ.', true);
-    }
-  };
-  reader.readAsText(file);
-}
-
-/* ---------------- Remote play: WebRTC P2P (real-time, no server) ----------------
-   Host creates an offer, guest creates an answer from it — both descriptions
-   already include ICE candidates (we wait for gathering to finish rather
-   than trickle them), so exchanging just two short codes by hand is enough
-   to open a direct peer-to-peer data channel. Every move is then sent the
-   instant it's made. */
-
-function waitIceGatheringComplete(pc){
-  return new Promise(resolve=>{
-    if(pc.iceGatheringState==='complete'){ resolve(); return; }
-    function check(){
-      if(pc.iceGatheringState==='complete'){
-        pc.removeEventListener('icegatheringstatechange', check);
-        resolve();
-      }
-    }
-    pc.addEventListener('icegatheringstatechange', check);
-  });
-}
-
-function encodeSDP(desc){
-  return btoa(unescape(encodeURIComponent(JSON.stringify(desc))));
-}
-function decodeSDP(code){
-  return JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-}
-
-function cleanupP2P(){
-  if(p2p.channel){ try{ p2p.channel.close(); }catch(e){} }
-  if(p2p.pc){ try{ p2p.pc.close(); }catch(e){} }
-  p2p.pc = null; p2p.channel = null; p2p.role = null;
-  document.getElementById('p2pHostBox').style.display = 'none';
-  document.getElementById('p2pGuestBox').style.display = 'none';
-}
-
-function setP2PStatus(text, warn){
-  const el = document.getElementById('p2pStatus');
-  el.textContent = text;
-  el.classList.toggle('warn', !!warn);
-  el.classList.toggle('live', !warn);
-}
-
-function setupP2PChannel(channel, myColor){
-  channel.onopen = ()=>{
-    setP2PStatus('🟢 Đã kết nối trực tiếp!', false);
-    startRemoteGame(myColor, 'p2p');
-  };
-  channel.onclose = ()=>{
-    if(state.online.active && state.online.transport==='p2p'){
-      setP2PStatus('🔌 Mất kết nối trực tiếp với đối thủ.', true);
-    }
-  };
-  channel.onerror = ()=> setP2PStatus('Lỗi kết nối P2P.', true);
-  channel.onmessage = (e)=>{
-    try{
-      const msg = JSON.parse(e.data);
-      if(msg.type==='move'){
-        doMove(msg.from, msg.to, {sendP2P:false});
-      }
-    }catch(err){ /* ignore malformed message */ }
-  };
-}
-
-async function p2pCreateHost(){
-  cleanupP2P();
-  setP2PStatus('Đang tạo mã mời…', false);
-  const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
-  p2p.pc = pc;
-  p2p.role = 'host';
-  const channel = pc.createDataChannel('game');
-  p2p.channel = channel;
-  setupP2PChannel(channel, 'red');
-  try{
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitIceGatheringComplete(pc);
-    document.getElementById('p2pOfferCode').value = encodeSDP(pc.localDescription);
-    document.getElementById('p2pHostBox').style.display = '';
-    setP2PStatus('Đã tạo mã mời — gửi cho đối thủ, rồi dán mã trả lời của họ vào bên dưới.', false);
-  }catch(err){
-    setP2PStatus('Trình duyệt này không hỗ trợ kết nối trực tiếp.', true);
-  }
-}
-
-async function p2pConnectHost(){
-  const code = document.getElementById('p2pAnswerInput').value.trim();
-  if(!code){ setP2PStatus('Dán mã trả lời của đối thủ vào trước đã.', true); return; }
-  if(!p2p.pc){ setP2PStatus('Hãy bấm "Tạo phòng" trước.', true); return; }
-  try{
-    const answer = decodeSDP(code);
-    await p2p.pc.setRemoteDescription(answer);
-    setP2PStatus('Đang thiết lập kết nối…', false);
-  }catch(err){
-    setP2PStatus('Mã trả lời không hợp lệ.', true);
-  }
-}
-
-async function p2pJoinGuest(){
-  const code = document.getElementById('p2pOfferInput').value.trim();
-  if(!code){ setP2PStatus('Dán mã mời từ host vào trước đã.', true); return; }
-  cleanupP2P();
-  try{
-    const offer = decodeSDP(code);
-    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
-    p2p.pc = pc;
-    p2p.role = 'guest';
-    pc.ondatachannel = (e)=>{
-      p2p.channel = e.channel;
-      setupP2PChannel(e.channel, 'black');
-    };
-    await pc.setRemoteDescription(offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitIceGatheringComplete(pc);
-    document.getElementById('p2pAnswerCode').value = encodeSDP(pc.localDescription);
-    document.getElementById('p2pGuestBox').style.display = '';
-    setP2PStatus('Đã tạo mã trả lời — gửi lại cho host để hoàn tất kết nối.', false);
-  }catch(err){
-    setP2PStatus('Mã mời không hợp lệ hoặc trình duyệt không hỗ trợ.', true);
-  }
-}
-
-function copyTextField(id, label){
-  const el = document.getElementById(id);
-  el.select();
-  navigator.clipboard?.writeText(el.value)
-    .then(()=>flashStatus(`📋 Đã sao chép ${label}.`, false))
-    .catch(()=>flashStatus('Không sao chép được, hãy tự bôi đen và copy.', true));
-}
-
-/* ---------------- Remote play: Firebase Realtime Database (real-time, needs setup) ----------------
-   More reliable than raw WebRTC on restrictive networks since it only
-   ever talks to Firebase over regular HTTPS. Requires config.json's
-   "firebase" block to be filled in with your own project's config
-   (see README) — the buttons below simply explain that if it's missing. */
 
 function randomRoomCode(len=5){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1226,7 +1026,7 @@ async function fbCreateRoom(){
   try{ fbInit(); }catch(err){ setFbStatus('Lỗi khởi tạo Firebase: '+err.message, true); return; }
 
   const code = randomRoomCode();
-  startRemoteGame('red', 'firebase');
+  startRemoteGame('red');
   state.online.roomCode = code;
   state.online.version = 1;
   fb.room = code;
@@ -1272,7 +1072,7 @@ async function fbJoinRoom(){
 
   fb.room = code;
   fb.roomRef = ref;
-  startRemoteGame('black', 'firebase');
+  startRemoteGame('black');
   state.online.roomCode = code;
   state.online.version = 0; // force-apply whatever the host currently has
   fbListen();
@@ -1332,7 +1132,6 @@ function fbPushState(){
 }
 
 function leaveRoom(){
-  cleanupP2P();
   fbStopListening();
   state.online.active = false;
   state.online.color = null;
@@ -1340,12 +1139,7 @@ function leaveRoom(){
   state.online.roomCode = null;
   document.getElementById('onlineIdle').style.display = '';
   document.getElementById('onlineActive').style.display = 'none';
-  document.getElementById('p2pOfferInput').value = '';
-  document.getElementById('p2pAnswerInput').value = '';
-  document.getElementById('p2pOfferCode').value = '';
-  document.getElementById('p2pAnswerCode').value = '';
   document.getElementById('fbJoinCodeInput').value = '';
-  setP2PStatus('', false);
   setFbStatus('', false);
   resetGame();
 }
@@ -1488,22 +1282,7 @@ document.getElementById('loadFileInput').addEventListener('change', (e)=>{
   e.target.value = '';
 });
 
-document.getElementById('pickRedBtn').addEventListener('click', ()=>pickColor('red'));
-document.getElementById('pickBlackBtn').addEventListener('click', ()=>pickColor('black'));
-document.getElementById('exportMoveBtn').addEventListener('click', exportMove);
-document.getElementById('importMoveBtn').addEventListener('click', importMove);
-document.getElementById('importMoveFileInput').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(file) handleImportMoveFile(file);
-  e.target.value = '';
-});
 document.getElementById('leaveRoomBtn').addEventListener('click', leaveRoom);
-
-document.getElementById('p2pHostBtn').addEventListener('click', p2pCreateHost);
-document.getElementById('p2pConnectBtn').addEventListener('click', p2pConnectHost);
-document.getElementById('p2pGuestBtn').addEventListener('click', p2pJoinGuest);
-document.getElementById('p2pCopyOffer').addEventListener('click', ()=>copyTextField('p2pOfferCode','mã mời'));
-document.getElementById('p2pCopyAnswer').addEventListener('click', ()=>copyTextField('p2pAnswerCode','mã trả lời'));
 
 document.getElementById('fbCreateRoomBtn').addEventListener('click', fbCreateRoom);
 document.getElementById('fbJoinRoomBtn').addEventListener('click', fbJoinRoom);
@@ -1562,4 +1341,3 @@ async function loadConfigAndInit(){
 }
 
 loadConfigAndInit();
-
