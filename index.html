@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cờ Tướng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">象 棋 · Chinese Chess</div>
+  <h1>Cờ <span>Tướng</span></h1>
+  <div class="sub">Bàn cờ gỗ trầm — quân cờ pha lê</div>
+</div>
+
+<div class="layout">
+
+  <div class="panel">
+    <h3>Ván Cờ</h3>
+    <div class="turn-indicator" id="turnIndicator">
+      <div class="turn-dot red" id="turnDot"></div>
+      <div id="turnLabel">Lượt của Đỏ</div>
+    </div>
+
+    <div class="mode-group">
+      <button class="mode-btn active" data-mode="pvp">👥 Người vs Người</button>
+      <button class="mode-btn" data-mode="pve-easy">🤖 Đấu máy — Dễ</button>
+      <button class="mode-btn" data-mode="pve-hard">🤖 Đấu máy — Khó</button>
+    </div>
+
+    <div class="action-row">
+      <button class="action-btn" id="undoBtn">↩ Đi lại</button>
+      <button class="action-btn" id="resetBtn">⟳ Ván mới</button>
+    </div>
+    <div class="action-row">
+      <button class="action-btn" id="saveBtn">💾 Lưu ván (.json)</button>
+      <button class="action-btn" id="loadBtn">📂 Mở file ván</button>
+    </div>
+    <input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
+
+    <div class="status-msg" id="statusMsg"></div>
+
+    <h3 style="margin-top:20px;">Quân đã ăn</h3>
+    <div class="captured-row" id="capturedRed"></div>
+    <div class="captured-row" id="capturedBlack" style="margin-top:6px;"></div>
+
+    <h3 style="margin-top:20px;">Lịch sử nước đi</h3>
+    <div class="history-box" id="historyBox"></div>
+  </div>
+
+  <div class="board-wrap">
+    <svg id="boardSvg" width="558" height="620" viewBox="0 0 558 620"></svg>
+  </div>
+
+  <div class="panel" id="sidePanel">
+    <h3>🌐 Chơi Cùng Bạn Bè</h3>
+    <div id="onlineIdle">
+
+      <div class="remote-tab-block">
+        <h4>⚡ Trực tiếp (P2P, thời gian thực)</h4>
+        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Không cần server. Một người tạo phòng và gửi 1 đoạn mã ngắn cho người kia, người kia dán vào rồi gửi lại mã trả lời — sau đó mọi nước đi hiện ngay lập tức, như chơi trực tiếp.</div>
+
+        <div class="action-row">
+          <button class="action-btn" id="p2pHostBtn">🔴 Tạo phòng (Host)</button>
+        </div>
+        <div id="p2pHostBox" style="display:none;">
+          <div class="sub" style="font-size:12px; margin-top:8px;">1. Gửi mã mời này cho đối thủ:</div>
+          <textarea id="p2pOfferCode" class="p2p-textarea" readonly rows="3"></textarea>
+          <button class="action-btn" id="p2pCopyOffer" style="width:100%;">📋 Sao chép mã mời</button>
+          <div class="sub" style="font-size:12px; margin-top:10px;">2. Dán mã trả lời của đối thủ vào đây:</div>
+          <textarea id="p2pAnswerInput" class="p2p-textarea" rows="3" placeholder="Dán mã trả lời..."></textarea>
+          <button class="action-btn" id="p2pConnectBtn" style="width:100%;">🔗 Kết nối</button>
+        </div>
+
+        <div class="sub" style="font-size:12px; margin-top:14px;">Hoặc dán mã mời bạn nhận được để vào phòng:</div>
+        <textarea id="p2pOfferInput" class="p2p-textarea" rows="3" placeholder="Dán mã mời từ host..."></textarea>
+        <div class="action-row">
+          <button class="action-btn" id="p2pGuestBtn">⚫ Vào phòng (Guest)</button>
+        </div>
+        <div id="p2pGuestBox" style="display:none;">
+          <div class="sub" style="font-size:12px; margin-top:8px;">Gửi mã trả lời này lại cho host:</div>
+          <textarea id="p2pAnswerCode" class="p2p-textarea" readonly rows="3"></textarea>
+          <button class="action-btn" id="p2pCopyAnswer" style="width:100%;">📋 Sao chép mã trả lời</button>
+        </div>
+        <div class="online-status" id="p2pStatus"></div>
+      </div>
+
+      <div class="remote-tab-block" style="margin-top:18px;">
+        <h4>📡 Qua file (không cần mạng ổn định)</h4>
+        <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Mỗi lượt xuất ra 1 file nhỏ, gửi qua Zalo/Messenger/Email. Không thời gian thực nhưng luôn hoạt động dù mạng chập chờn.</div>
+        <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Bạn muốn cầm quân nào?</div>
+        <div class="action-row">
+          <button class="action-btn" id="pickRedBtn">🔴 Chơi Đỏ</button>
+          <button class="action-btn" id="pickBlackBtn">⚫ Chơi Đen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="onlineActive" style="display:none;">
+      <div class="room-code-box">
+        <div class="room-code-label">
+          Bạn đang cầm quân
+          <span class="killmode-active-badge" id="p2pLiveBadge" style="display:none;">TRỰC TIẾP</span>
+        </div>
+        <div class="room-code" id="roomCodeDisplay">Đỏ</div>
+      </div>
+      <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
+      <div id="fileExchangeControls">
+        <div class="action-row">
+          <button class="action-btn" id="exportMoveBtn">⬇ Xuất file lượt đi</button>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="importMoveBtn">⬆ Nhập file đối thủ</button>
+        </div>
+        <input type="file" id="importMoveFileInput" accept="application/json,.json" style="display:none;">
+      </div>
+      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">🚪 Kết thúc phiên</button>
+    </div>
+    <div class="online-status" id="onlineStatus"></div>
+
+    <div id="cheatPanel" style="display:none;">
+      <h3 style="margin-top:22px;">⚡ Chế Độ Gian Lận</h3>
+      <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Chỉ dùng khi đấu máy — các nút này bẻ luật để bạn luôn thắng.</div>
+
+      <button class="action-btn" id="skipAiBtn" style="width:100%; margin-bottom:8px;">⏭ Đổi Lượt Ngay</button>
+
+      <div class="cheat-toggle" id="killModeRow">
+        <span>🎯 Cực Tử (bấm quân địch để giết)</span>
+        <label class="switch">
+          <input type="checkbox" id="killModeToggle">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <button class="action-btn cheat-danger" id="beheadBtn" style="width:100%; margin:8px 0;">☠ Trảm Tướng (Thắng Ngay)</button>
+      <button class="action-btn cheat-danger" id="reviveChariotBtn" style="width:100%;">🐎 Hồi Sinh Xe Đỏ</button>
+
+    </div>
+  </div>
+
+
+</div>
+
+<div class="footer-note">Chạm để chọn quân, ô xanh ngọc là nước đi hợp lệ. Tướng đối mặt trực diện (không quân chắn) là nước cấm — luật "lộ mặt tướng" được áp dụng đầy đủ.</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h2 id="modalTitle">Chiếu Bí!</h2>
+    <p id="modalText">Đỏ đã thắng ván cờ.</p>
+    <button id="modalBtn">Chơi Lại</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
