@@ -1172,10 +1172,21 @@ function leaveRoom(){
   resetGame();
 }
 
+let currentTab = 'game';
+
+function switchTab(tabName){
+  currentTab = tabName;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabName));
+  document.querySelectorAll('.tab-content').forEach(c=>{
+    c.style.display = (c.dataset.tabContent===tabName) ? '' : 'none';
+  });
+}
+
 function updateCheatPanelVisibility(){
-  const panel = document.getElementById('cheatPanel');
+  const tabBtn = document.getElementById('cheatTabBtn');
   const show = state.mode!=='pvp' && !state.online.active;
-  panel.style.display = show ? '' : 'none';
+  tabBtn.style.display = show ? '' : 'none';
+  if(!show && currentTab==='cheat'){ switchTab('game'); }
 }
 
 function updateAiLevelBoxVisibility(){
@@ -1295,6 +1306,10 @@ function resetGame(){
 }
 
 /* ---------------- Wire up controls ---------------- */
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
+});
 
 document.querySelectorAll('.mode-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
