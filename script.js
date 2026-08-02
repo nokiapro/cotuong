@@ -286,26 +286,46 @@ function minimax(board, depth, alpha, beta, color){
   }
 }
 
-function aiBestMove(board, color, depth){
+/* 10 difficulty levels: higher level = deeper search + less randomness.
+   "noise" is added to each candidate move's score before picking the
+   best one, so the AI doesn't always play the one "optimal" line —
+   at low levels it visibly makes mistakes, at high levels it still
+   varies between genuinely equal moves instead of repeating openings. */
+const AI_LEVELS = [
+  { depth:1, noise:900  }, // 1
+  { depth:1, noise:600  }, // 2
+  { depth:2, noise:400  }, // 3
+  { depth:2, noise:260  }, // 4
+  { depth:2, noise:150  }, // 5
+  { depth:3, noise:90   }, // 6
+  { depth:3, noise:50   }, // 7
+  { depth:3, noise:25   }, // 8
+  { depth:4, noise:10   }, // 9
+  { depth:4, noise:0    }  // 10
+];
+const LEVEL_NAMES = [
+  'Mới học','Vỡ lòng','Nghiệp dư','Khá','Giỏi',
+  'Cao thủ','Chuyên nghiệp','Đại kiện tướng','Siêu đẳng','Bất khả chiến bại'
+];
+
+function aiBestMove(board, color, level){
+  const cfg = AI_LEVELS[Math.min(Math.max(level,1),10) - 1];
   const moves = allLegalMoves(board, color);
   if(moves.length===0) return null;
   moves.sort((a,b)=> (b.capture?1:0) - (a.capture?1:0));
-  let best = null;
-  let bestVal = color==='red' ? -Infinity : Infinity;
+
   let alpha=-Infinity, beta=Infinity;
-  // shuffle a bit for variety among equal moves
+  let best=null, bestNoisy=-Infinity;
   for(const m of moves){
     const nb = cloneBoard(board);
     nb[m.to.r][m.to.c] = nb[m.from.r][m.from.c];
     nb[m.from.r][m.from.c] = null;
-    const val = minimax(nb, depth-1, alpha, beta, color==='red'?'black':'red');
-    if(color==='red'){
-      if(val>bestVal || (val===bestVal && Math.random()<0.3)){ bestVal=val; best=m; }
-      if(bestVal>alpha) alpha=bestVal;
-    } else {
-      if(val<bestVal || (val===bestVal && Math.random()<0.3)){ bestVal=val; best=m; }
-      if(bestVal<beta) beta=bestVal;
-    }
+    const raw = minimax(nb, cfg.depth-1, alpha, beta, color==='red'?'black':'red');
+    const score = color==='red' ? raw : -raw; // normalise: higher = better for the side to move
+    const noisy = cfg.noise>0 ? score + (Math.random()*2-1)*cfg.noise : score;
+    if(noisy>bestNoisy){ bestNoisy=noisy; best=m; }
+    // keep pruning tight using the true (non-noisy) score, for speed
+    if(color==='red'){ if(score>alpha) alpha=score; } else { if(-score<beta) beta=-score; }
   }
   return best;
 }
@@ -322,7 +342,8 @@ let state = {
   selected: null,
   legalTargets: [],
   history: [],       // {from,to,captured,boardBefore}
-  mode: 'pvp',        // pvp | pve-easy | pve-hard
+  mode: 'pvp',        // pvp | pve
+  aiLevel: 5,         // 1 (weakest) .. 10 (strongest)
   humanColor: 'red',
   gameOver: false,
   lastMove: null,
@@ -742,15 +763,16 @@ function doMove(from, to, opts={}){
 function triggerAiMove(){
   state.aiThinking = true;
   updateTurnIndicator();
+  const cfg = AI_LEVELS[Math.min(Math.max(state.aiLevel,1),10) - 1];
+  const thinkDelay = 220 + cfg.depth * 90;
   state.aiTimeoutId = setTimeout(()=>{
     state.aiTimeoutId = null;
-    const depth = state.mode==='pve-hard' ? 3 : 2;
-    const move = aiBestMove(state.board, state.turn, depth);
+    const move = aiBestMove(state.board, state.turn, state.aiLevel);
     state.aiThinking = false;
     if(move){
       doMove(move.from, move.to);
     }
-  }, 260);
+  }, thinkDelay);
 }
 
 function checkGameEnd(){
@@ -875,6 +897,7 @@ function serializeGame(){
     board: state.board.map(row=>row.map(p=>p ? {type:p.type,color:p.color} : null)),
     turn: state.turn,
     mode: state.mode,
+    aiLevel: state.aiLevel,
     humanColor: state.humanColor,
     remote: state.online.active ? {active:true, color:state.online.color} : null,
     savedAt: new Date().toISOString()
@@ -885,7 +908,9 @@ function restoreGameData(data){
   resetPieceLayer();
   state.board = data.board.map(row=>row.map(p=>p ? {type:p.type,color:p.color} : null));
   state.turn = data.turn;
-  state.mode = data.mode || 'pvp';
+  // old saves used 'pve-easy'/'pve-hard'; migrate to the single 'pve' mode + level slider
+  state.mode = (data.mode==='pve-easy' || data.mode==='pve-hard') ? 'pve' : (data.mode || 'pvp');
+  state.aiLevel = data.aiLevel || (data.mode==='pve-hard' ? 8 : data.mode==='pve-easy' ? 3 : 5);
   state.humanColor = data.humanColor || 'red';
   state.selected = null;
   state.legalTargets = [];
@@ -898,6 +923,7 @@ function restoreGameData(data){
   document.getElementById('historyBox').innerHTML='';
   document.getElementById('modalOverlay').classList.remove('show');
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===state.mode));
+  updateAiLevelBadge();
   renderPieces();
   renderMarkers();
   updateStatus();
@@ -925,6 +951,7 @@ function handleLoadFile(file){
       document.getElementById('onlineActive').style.display = 'none';
       restoreGameData(data);
       updateCheatPanelVisibility();
+      updateAiLevelBoxVisibility();
       flashStatus('📂 Đã tải ván cờ từ file.', false);
     }catch(err){
       flashStatus('File này không đúng định dạng ván cờ.', true);
@@ -953,6 +980,7 @@ function startRemoteGame(color){
   state.mode = 'pvp';
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='pvp'));
   updateCheatPanelVisibility();
+  updateAiLevelBoxVisibility();
   state.board = initialBoard();
   state.turn = 'red';
   state.selected = null;
@@ -1150,6 +1178,16 @@ function updateCheatPanelVisibility(){
   panel.style.display = show ? '' : 'none';
 }
 
+function updateAiLevelBoxVisibility(){
+  const box = document.getElementById('aiLevelBox');
+  box.style.display = (state.mode==='pve' && !state.online.active) ? '' : 'none';
+}
+
+function updateAiLevelBadge(){
+  document.getElementById('aiLevelSlider').value = state.aiLevel;
+  document.getElementById('aiLevelBadge').textContent = `${state.aiLevel} · ${LEVEL_NAMES[state.aiLevel-1]}`;
+}
+
 
 /* ---------------- UI helpers ---------------- */
 
@@ -1266,8 +1304,14 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
     state.mode = btn.dataset.mode;
     state.humanColor = 'red';
     updateCheatPanelVisibility();
+    updateAiLevelBoxVisibility();
     resetGame();
   });
+});
+
+document.getElementById('aiLevelSlider').addEventListener('input', (e)=>{
+  state.aiLevel = +e.target.value;
+  updateAiLevelBadge();
 });
 
 document.getElementById('undoBtn').addEventListener('click', undo);
@@ -1299,6 +1343,8 @@ document.getElementById('killModeToggle').addEventListener('change', (e)=>{
 });
 
 updateCheatPanelVisibility();
+updateAiLevelBoxVisibility();
+updateAiLevelBadge();
 
 /* ---------------- Init: load config.json, then boot the game ---------------- */
 async function loadConfigAndInit(){
