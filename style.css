@@ -73,11 +73,11 @@
 
   /* ---- Side panel ---- */
   .panel{
-    width:250px;
+    width:290px;
     background:linear-gradient(160deg, var(--panel-2), var(--panel));
     border:1px solid rgba(200,151,63,0.25);
     border-radius:14px;
-    padding:20px;
+    padding:16px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
   }
   .panel h3{
@@ -89,6 +89,42 @@
     border-bottom:1px solid rgba(200,151,63,0.2);
     padding-bottom:8px;
   }
+
+  .tab-bar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    margin-bottom:16px;
+    padding-bottom:12px;
+    border-bottom:1px solid rgba(200,151,63,0.2);
+  }
+  .tab-btn{
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(200,151,63,0.2);
+    color:var(--muted);
+    font-family:'Inter',sans-serif;
+    font-size:11.5px;
+    padding:6px 10px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover{border-color:var(--brass); color:var(--cream);}
+  .tab-btn.active{
+    background:linear-gradient(135deg, rgba(200,151,63,0.28), rgba(200,151,63,0.1));
+    border-color:var(--brass);
+    color:var(--brass-light);
+    box-shadow:0 0 0 1px rgba(200,151,63,0.3) inset;
+  }
+  .tab-content{
+    animation: tabFadeIn 0.2s ease;
+  }
+  @keyframes tabFadeIn{
+    from{opacity:0; transform:translateY(3px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
   .turn-indicator{
     display:flex;
     align-items:center;
