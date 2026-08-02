@@ -29,8 +29,16 @@
 
     <div class="mode-group">
       <button class="mode-btn active" data-mode="pvp">👥 Người vs Người</button>
-      <button class="mode-btn" data-mode="pve-easy">🤖 Đấu máy — Dễ</button>
-      <button class="mode-btn" data-mode="pve-hard">🤖 Đấu máy — Khó</button>
+      <button class="mode-btn" data-mode="pve">🤖 Đấu máy</button>
+    </div>
+
+    <div id="aiLevelBox" style="display:none;">
+      <div class="level-row">
+        <span class="sub" style="margin:0; font-size:12.5px;">Độ khó</span>
+        <span class="level-badge" id="aiLevelBadge">5 · Giỏi</span>
+      </div>
+      <input type="range" id="aiLevelSlider" class="level-slider" min="1" max="10" step="1" value="5">
+      <div class="level-scale"><span>1</span><span>10</span></div>
     </div>
 
     <div class="action-row">
