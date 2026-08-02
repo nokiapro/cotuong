@@ -20,83 +20,90 @@
 
 <div class="layout">
 
-  <div class="panel">
-    <h3>Ván Cờ</h3>
-    <div class="turn-indicator" id="turnIndicator">
-      <div class="turn-dot red" id="turnDot"></div>
-      <div id="turnLabel">Lượt của Đỏ</div>
+  <div class="panel tabbed-panel">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="game">🎮 Ván Cờ</button>
+      <button class="tab-btn" data-tab="captured">🍗 Quân đã ăn</button>
+      <button class="tab-btn" data-tab="history">📜 Lịch sử</button>
+      <button class="tab-btn" data-tab="online">🌐 Bạn Bè</button>
+      <button class="tab-btn" id="cheatTabBtn" data-tab="cheat" style="display:none;">⚡ Gian Lận</button>
     </div>
 
-    <div class="mode-group">
-      <button class="mode-btn active" data-mode="pvp">👥 Người vs Người</button>
-      <button class="mode-btn" data-mode="pve">🤖 Đấu máy</button>
-    </div>
-
-    <div id="aiLevelBox" style="display:none;">
-      <div class="level-row">
-        <span class="sub" style="margin:0; font-size:12.5px;">Độ khó</span>
-        <span class="level-badge" id="aiLevelBadge">5 · Giỏi</span>
+    <div class="tab-content" data-tab-content="game">
+      <div class="turn-indicator" id="turnIndicator">
+        <div class="turn-dot red" id="turnDot"></div>
+        <div id="turnLabel">Lượt của Đỏ</div>
       </div>
-      <input type="range" id="aiLevelSlider" class="level-slider" min="1" max="10" step="1" value="5">
-      <div class="level-scale"><span>1</span><span>10</span></div>
-    </div>
 
-    <div class="action-row">
-      <button class="action-btn" id="undoBtn">↩ Đi lại</button>
-      <button class="action-btn" id="resetBtn">⟳ Ván mới</button>
-    </div>
-    <div class="action-row">
-      <button class="action-btn" id="saveBtn">💾 Lưu ván (.json)</button>
-      <button class="action-btn" id="loadBtn">📂 Mở file ván</button>
-    </div>
-    <input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
-
-    <div class="status-msg" id="statusMsg"></div>
-
-    <h3 style="margin-top:20px;">Quân đã ăn</h3>
-    <div class="captured-row" id="capturedRed"></div>
-    <div class="captured-row" id="capturedBlack" style="margin-top:6px;"></div>
-
-    <h3 style="margin-top:20px;">Lịch sử nước đi</h3>
-    <div class="history-box" id="historyBox"></div>
-  </div>
-
-  <div class="board-wrap">
-    <svg id="boardSvg" width="558" height="620" viewBox="0 0 558 620"></svg>
-  </div>
-
-  <div class="panel" id="sidePanel">
-    <h3>🌐 Chơi Cùng Bạn Bè</h3>
-    <div id="onlineIdle">
-      <div class="remote-tab-block">
-        <h4>🔥 Chơi Trực Tuyến (Firebase)</h4>
-        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Thời gian thực. Cần tạo 1 project Firebase miễn phí và dán config vào <code>config.json</code> một lần duy nhất — xem hướng dẫn trong README.</div>
-        <div class="action-row">
-          <button class="action-btn" id="fbCreateRoomBtn">➕ Tạo phòng</button>
-        </div>
-        <div class="join-row">
-          <input type="text" id="fbJoinCodeInput" placeholder="Nhập mã phòng" maxlength="6">
-          <button class="action-btn" id="fbJoinRoomBtn">Vào phòng</button>
-        </div>
-        <div class="online-status" id="fbStatus"></div>
+      <div class="mode-group">
+        <button class="mode-btn active" data-mode="pvp">👥 Người vs Người</button>
+        <button class="mode-btn" data-mode="pve">🤖 Đấu máy</button>
       </div>
-    </div>
 
-    <div id="onlineActive" style="display:none;">
-      <div class="room-code-box">
-        <div class="room-code-label">
-          Bạn đang cầm quân
-          <span class="killmode-active-badge" id="onlineLiveBadge">TRỰC TIẾP</span>
+      <div id="aiLevelBox" style="display:none;">
+        <div class="level-row">
+          <span class="sub" style="margin:0; font-size:12.5px;">Độ khó</span>
+          <span class="level-badge" id="aiLevelBadge">5 · Giỏi</span>
         </div>
-        <div class="room-code" id="roomCodeDisplay">Đỏ</div>
+        <input type="range" id="aiLevelSlider" class="level-slider" min="1" max="10" step="1" value="5">
+        <div class="level-scale"><span>1</span><span>10</span></div>
       </div>
-      <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
-      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">🚪 Kết thúc phiên</button>
-    </div>
-    <div class="online-status" id="onlineStatus"></div>
 
-    <div id="cheatPanel" style="display:none;">
-      <h3 style="margin-top:22px;">⚡ Chế Độ Gian Lận</h3>
+      <div class="action-row">
+        <button class="action-btn" id="undoBtn">↩ Đi lại</button>
+        <button class="action-btn" id="resetBtn">⟳ Ván mới</button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn" id="saveBtn">💾 Lưu ván (.json)</button>
+        <button class="action-btn" id="loadBtn">📂 Mở file ván</button>
+      </div>
+      <input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
+
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <div class="tab-content" data-tab-content="captured" style="display:none;">
+      <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Quân Đỏ đã mất</div>
+      <div class="captured-row" id="capturedRed"></div>
+      <div class="sub" style="font-size:12.5px; margin:16px 0 10px 0;">Quân Đen đã mất</div>
+      <div class="captured-row" id="capturedBlack"></div>
+    </div>
+
+    <div class="tab-content" data-tab-content="history" style="display:none;">
+      <div class="history-box" id="historyBox"></div>
+    </div>
+
+    <div class="tab-content" data-tab-content="online" style="display:none;">
+      <div id="onlineIdle">
+        <div class="remote-tab-block">
+          <h4>🔥 Chơi Trực Tuyến (Firebase)</h4>
+          <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Thời gian thực. Cần tạo 1 project Firebase miễn phí và dán config vào <code>config.json</code> một lần duy nhất — xem hướng dẫn trong README.</div>
+          <div class="action-row">
+            <button class="action-btn" id="fbCreateRoomBtn">➕ Tạo phòng</button>
+          </div>
+          <div class="join-row">
+            <input type="text" id="fbJoinCodeInput" placeholder="Nhập mã phòng" maxlength="6">
+            <button class="action-btn" id="fbJoinRoomBtn">Vào phòng</button>
+          </div>
+          <div class="online-status" id="fbStatus"></div>
+        </div>
+      </div>
+
+      <div id="onlineActive" style="display:none;">
+        <div class="room-code-box">
+          <div class="room-code-label">
+            Bạn đang cầm quân
+            <span class="killmode-active-badge" id="onlineLiveBadge">TRỰC TIẾP</span>
+          </div>
+          <div class="room-code" id="roomCodeDisplay">Đỏ</div>
+        </div>
+        <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
+        <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">🚪 Kết thúc phiên</button>
+      </div>
+      <div class="online-status" id="onlineStatus"></div>
+    </div>
+
+    <div class="tab-content" data-tab-content="cheat" style="display:none;" id="cheatPanel">
       <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Chỉ dùng khi đấu máy — các nút này bẻ luật để bạn luôn thắng.</div>
 
       <button class="action-btn" id="skipAiBtn" style="width:100%; margin-bottom:8px;">⏭ Đổi Lượt Ngay</button>
@@ -111,10 +118,12 @@
 
       <button class="action-btn cheat-danger" id="beheadBtn" style="width:100%; margin:8px 0;">☠ Trảm Tướng (Thắng Ngay)</button>
       <button class="action-btn cheat-danger" id="reviveChariotBtn" style="width:100%;">🐎 Hồi Sinh Xe Đỏ</button>
-
     </div>
   </div>
 
+  <div class="board-wrap">
+    <svg id="boardSvg" width="558" height="620" viewBox="0 0 558 620"></svg>
+  </div>
 
 </div>
 
