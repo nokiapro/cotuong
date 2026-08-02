@@ -53,11 +53,13 @@
       <button class="action-btn" id="undoBtn">↩ Đi lại</button>
       <button class="action-btn" id="resetBtn">⟳ Ván mới</button>
     </div>
-    <div class="action-row">
-      <button class="action-btn" id="saveBtn">💾 Lưu ván (.json)</button>
-      <button class="action-btn" id="loadBtn">📂 Mở file ván</button>
+
+    <div class="join-row" style="margin-top:6px;">
+      <input type="text" id="saveCodeInput" placeholder="Mã ván đấu" maxlength="5">
+      <button class="action-btn" id="loadBtn">🔥 Tải</button>
     </div>
-    <input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
+    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;">🔥 Lưu ván đấu mới</button>
+    <div class="online-status" id="saveStatus"></div>
 
     <div class="status-msg" id="statusMsg"></div>
   </div>
