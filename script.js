@@ -1180,7 +1180,14 @@ function switchTab(tabName){
   document.querySelectorAll('.tab-content').forEach(c=>{
     c.style.display = (c.dataset.tabContent===tabName) ? '' : 'none';
   });
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if(activeBtn) document.getElementById('currentTabLabel').textContent = activeBtn.textContent;
+  closeTabMenu();
 }
+
+function openTabMenu(){ document.getElementById('tabBarWrap').classList.add('open'); }
+function closeTabMenu(){ document.getElementById('tabBarWrap').classList.remove('open'); }
+function toggleTabMenu(){ document.getElementById('tabBarWrap').classList.toggle('open'); }
 
 function updateCheatPanelVisibility(){
   const tabBtn = document.getElementById('cheatTabBtn');
@@ -1309,6 +1316,17 @@ function resetGame(){
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
+});
+
+document.getElementById('tabMenuToggle').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  toggleTabMenu();
+});
+document.addEventListener('click', (e)=>{
+  const wrap = document.getElementById('tabBarWrap');
+  if(wrap.classList.contains('open') && !wrap.contains(e.target)){
+    closeTabMenu();
+  }
 });
 
 document.querySelectorAll('.mode-btn').forEach(btn=>{
