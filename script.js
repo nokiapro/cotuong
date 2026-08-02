@@ -350,7 +350,8 @@ let state = {
   aiThinking: false,
   aiTimeoutId: null,
   online: { active:false, room:null, color:null, pollTimer:null, version:0, transport:null, roomCode:null },
-  cheat: { killMode:false }
+  cheat: { killMode:false },
+  currentSave: null // save code (string) once a save is made or loaded, else null
 };
 
 // WebRTC peer-connection state (kept outside `state` since it holds live
@@ -388,9 +389,6 @@ function buildStaticBoard(){
       <stop offset="55%" stop-color="rgba(30,30,30,0.78)"/>
       <stop offset="100%" stop-color="rgba(4,4,4,0.92)"/>
     </radialGradient>
-    <filter id="pieceShadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
-    </filter>
   `;
   svg.appendChild(defs);
 
@@ -540,7 +538,6 @@ function createPieceElement(p){
   base.setAttribute('fill', p.color==='red' ? 'url(#redPieceGrad)' : 'url(#blackPieceGrad)');
   base.setAttribute('stroke', p.color==='red' ? '#7a1410' : '#000');
   base.setAttribute('stroke-width','1.6');
-  base.setAttribute('filter','url(#pieceShadow)');
   visual.appendChild(base);
 
   const rim = document.createElementNS(ns,'circle');
@@ -789,6 +786,7 @@ function checkGameEnd(){
     } else {
       showGameOver('Hòa Cờ', 'Bên đi không còn nước hợp lệ — ván cờ kết thúc hòa.');
     }
+    deleteFinishedSave();
   }
 }
 
@@ -859,6 +857,7 @@ function finishWithCheatWin(){
     state.humanColor==='red' ? 'Đỏ Thắng!' : 'Đen Thắng!',
     'Tướng địch đã bị tiêu diệt bằng chiêu gian lận.'
   );
+  deleteFinishedSave();
 }
 
 // "Hồi Sinh Xe Đỏ" — spawn an extra red chariot on the first free square.
@@ -877,19 +876,10 @@ function cheatReviveChariot(){
   }
 }
 
-/* ---------------- File-based Save / Share (fully offline, no server) ---------------- */
-
-function downloadJSON(filename, dataObj){
-  const blob = new Blob([JSON.stringify(dataObj, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url), 1000);
-}
+/* ---------------- Save / Load via Firebase Realtime Database ----------------
+   Reuses the same config.json "firebase" block as online play — no extra
+   setup needed. Each save gets a short code and its own path
+   (saves/{code}), and gets auto-deleted once that match finishes. */
 
 function serializeGame(){
   return {
@@ -930,38 +920,82 @@ function restoreGameData(data){
   updateUndoBtn();
 }
 
-function saveGame(){
-  downloadJSON(`co-tuong-luu-${Date.now()}.json`, serializeGame());
-  flashStatus('💾 Đã tải file lưu ván xuống máy.', false);
+// Short, easy-to-read/share code for one saved match (avoids visually
+// ambiguous characters like 0/O/1/I).
+function generateSaveCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for(let i=0;i<5;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
 }
 
-function loadGame(){
-  document.getElementById('loadFileInput').click();
+async function saveGame(){
+  if(!fbAvailable()){
+    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
+    return;
+  }
+  const code = generateSaveCode();
+  const content = JSON.stringify(serializeGame());
+  try{
+    fbInit();
+    await fb.db.ref('saves/'+code).set({ content, savedAt: Date.now() });
+    document.getElementById('saveCodeInput').value = code;
+    state.currentSave = code;
+    flashStatus(`🔥 Đã lưu! Mã ván đấu: ${code} — ghi lại để tải lại sau.`, false, 'saveStatus');
+  }catch(err){
+    flashStatus('Lưu thất bại — kiểm tra cấu hình Firebase/luật bảo mật.', true, 'saveStatus');
+  }
 }
 
-function handleLoadFile(file){
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const data = JSON.parse(reader.result);
-      if(!data || data.kind!=='co-tuong-save' || !Array.isArray(data.board)) throw new Error('bad-format');
-      state.online.active = false;
-      state.online.color = null;
-      document.getElementById('onlineIdle').style.display = '';
-      document.getElementById('onlineActive').style.display = 'none';
-      restoreGameData(data);
-      updateCheatPanelVisibility();
-      updateAiLevelBoxVisibility();
-      flashStatus('📂 Đã tải ván cờ từ file.', false);
-    }catch(err){
-      flashStatus('File này không đúng định dạng ván cờ.', true);
-    }
-  };
-  reader.readAsText(file);
+async function loadGame(){
+  if(!fbAvailable()){
+    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
+    return;
+  }
+  const code = document.getElementById('saveCodeInput').value.trim().toUpperCase();
+  if(!code){
+    flashStatus('Nhập mã ván đấu trước đã.', true, 'saveStatus');
+    return;
+  }
+  try{
+    fbInit();
+    const snap = await fb.db.ref('saves/'+code).once('value');
+    const val = snap.val();
+    if(!val) throw new Error('missing save');
+    const data = JSON.parse(val.content);
+    if(!data || data.kind!=='co-tuong-save' || !Array.isArray(data.board)) throw new Error('bad-format');
+    state.online.active = false;
+    state.online.color = null;
+    document.getElementById('onlineIdle').style.display = '';
+    document.getElementById('onlineActive').style.display = 'none';
+    restoreGameData(data);
+    updateCheatPanelVisibility();
+    updateAiLevelBoxVisibility();
+    state.currentSave = code;
+    flashStatus(`✅ Đã tải ván đấu "${code}".`, false, 'saveStatus');
+  }catch(err){
+    flashStatus('Không tìm thấy ván đấu với mã này.', true, 'saveStatus');
+  }
 }
 
-function flashStatus(text, isWarn){
-  const el = document.getElementById('onlineStatus');
+// Called once a loaded/saved match actually finishes (checkmate, stalemate,
+// or a cheat auto-win) — removes its save slot since there's nothing left
+// to resume.
+async function deleteFinishedSave(){
+  const code = state.currentSave;
+  if(!code) return;
+  state.currentSave = null;
+  try{
+    fbInit();
+    await fb.db.ref('saves/'+code).remove();
+    flashStatus(`🗑️ Ván đã kết thúc — đã xoá file lưu "${code}".`, false, 'saveStatus');
+  }catch(err){
+    /* best-effort cleanup, no need to bother the user if this fails */
+  }
+}
+
+function flashStatus(text, isWarn, targetId){
+  const el = document.getElementById(targetId || 'onlineStatus');
   el.textContent = text;
   el.classList.toggle('warn', !!isWarn);
   el.classList.toggle('live', !isWarn);
@@ -1297,6 +1331,7 @@ function resetGame(){
   state.gameOver = false;
   state.lastMove = null;
   state.aiThinking = false;
+  state.currentSave = null;
   document.getElementById('capturedRed').innerHTML='';
   document.getElementById('capturedBlack').innerHTML='';
   document.getElementById('historyBox').innerHTML='';
@@ -1338,10 +1373,8 @@ document.getElementById('modalBtn').addEventListener('click', resetGame);
 
 document.getElementById('saveBtn').addEventListener('click', saveGame);
 document.getElementById('loadBtn').addEventListener('click', loadGame);
-document.getElementById('loadFileInput').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(file) handleLoadFile(file);
-  e.target.value = '';
+document.getElementById('saveCodeInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') loadGame();
 });
 
 document.getElementById('leaveRoomBtn').addEventListener('click', leaveRoom);
