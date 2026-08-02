@@ -1172,28 +1172,24 @@ function leaveRoom(){
   resetGame();
 }
 
-let currentTab = 'game';
-
-function switchTab(tabName){
-  currentTab = tabName;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabName));
-  document.querySelectorAll('.tab-content').forEach(c=>{
-    c.style.display = (c.dataset.tabContent===tabName) ? '' : 'none';
-  });
-  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-  if(activeBtn) document.getElementById('currentTabLabel').textContent = activeBtn.textContent;
-  closeTabMenu();
+function openDrawer(){
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('show');
+  document.getElementById('menuFab').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('show');
+  document.getElementById('menuFab').classList.remove('open');
+}
+function toggleDrawer(){
+  document.getElementById('drawer').classList.contains('open') ? closeDrawer() : openDrawer();
 }
 
-function openTabMenu(){ document.getElementById('tabBarWrap').classList.add('open'); }
-function closeTabMenu(){ document.getElementById('tabBarWrap').classList.remove('open'); }
-function toggleTabMenu(){ document.getElementById('tabBarWrap').classList.toggle('open'); }
-
 function updateCheatPanelVisibility(){
-  const tabBtn = document.getElementById('cheatTabBtn');
+  const panel = document.getElementById('cheatPanel');
   const show = state.mode!=='pvp' && !state.online.active;
-  tabBtn.style.display = show ? '' : 'none';
-  if(!show && currentTab==='cheat'){ switchTab('game'); }
+  panel.style.display = show ? '' : 'none';
 }
 
 function updateAiLevelBoxVisibility(){
@@ -1314,20 +1310,9 @@ function resetGame(){
 
 /* ---------------- Wire up controls ---------------- */
 
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
-});
-
-document.getElementById('tabMenuToggle').addEventListener('click', (e)=>{
-  e.stopPropagation();
-  toggleTabMenu();
-});
-document.addEventListener('click', (e)=>{
-  const wrap = document.getElementById('tabBarWrap');
-  if(wrap.classList.contains('open') && !wrap.contains(e.target)){
-    closeTabMenu();
-  }
-});
+document.getElementById('menuFab').addEventListener('click', toggleDrawer);
+document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
 
 document.querySelectorAll('.mode-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
