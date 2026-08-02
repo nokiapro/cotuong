@@ -90,13 +90,47 @@
     padding-bottom:8px;
   }
 
-  .tab-bar{
-    display:flex;
-    flex-wrap:wrap;
-    gap:4px;
+  .tab-bar-wrap{
     margin-bottom:16px;
     padding-bottom:12px;
     border-bottom:1px solid rgba(200,151,63,0.2);
+  }
+  .hamburger-btn{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(200,151,63,0.25);
+    color:var(--cream);
+    font-family:'Noto Serif SC', serif;
+    font-size:13.5px;
+    letter-spacing:0.03em;
+    padding:9px 12px;
+    border-radius:9px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .hamburger-btn:hover{border-color:var(--brass); color:var(--brass-light);}
+  .hamburger-icon{font-size:15px; line-height:1; color:var(--brass);}
+  .tab-bar-wrap.open .hamburger-btn{
+    border-color:var(--brass);
+    background:linear-gradient(135deg, rgba(200,151,63,0.18), rgba(200,151,63,0.06));
+  }
+
+  .tab-menu{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:10px;
+    max-height:0;
+    opacity:0;
+    overflow:hidden;
+    transition:max-height .22s ease, opacity .18s ease, margin-top .22s ease;
+  }
+  .tab-bar-wrap.open .tab-menu{
+    max-height:200px;
+    opacity:1;
   }
   .tab-btn{
     background:rgba(255,255,255,0.03);
@@ -118,6 +152,7 @@
     box-shadow:0 0 0 1px rgba(200,151,63,0.3) inset;
   }
   .tab-content{
+
     animation: tabFadeIn 0.2s ease;
   }
   @keyframes tabFadeIn{
