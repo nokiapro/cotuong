@@ -21,12 +21,18 @@
 <div class="layout">
 
   <div class="panel tabbed-panel">
-    <div class="tab-bar">
-      <button class="tab-btn active" data-tab="game">🎮 Ván Cờ</button>
-      <button class="tab-btn" data-tab="captured">🍗 Quân đã ăn</button>
-      <button class="tab-btn" data-tab="history">📜 Lịch sử</button>
-      <button class="tab-btn" data-tab="online">🌐 Bạn Bè</button>
-      <button class="tab-btn" id="cheatTabBtn" data-tab="cheat" style="display:none;">⚡ Gian Lận</button>
+    <div class="tab-bar-wrap" id="tabBarWrap">
+      <button class="hamburger-btn" id="tabMenuToggle">
+        <span class="hamburger-icon">☰</span>
+        <span id="currentTabLabel">🎮 Ván Cờ</span>
+      </button>
+      <div class="tab-menu" id="tabMenu">
+        <button class="tab-btn active" data-tab="game">🎮 Ván Cờ</button>
+        <button class="tab-btn" data-tab="captured">🍗 Quân đã ăn</button>
+        <button class="tab-btn" data-tab="history">📜 Lịch sử</button>
+        <button class="tab-btn" data-tab="online">🌐 Bạn Bè</button>
+        <button class="tab-btn" id="cheatTabBtn" data-tab="cheat" style="display:none;">⚡ Gian Lận</button>
+      </div>
     </div>
 
     <div class="tab-content" data-tab-content="game">
