@@ -365,7 +365,8 @@
   }
   .point{fill:none; stroke:var(--line); stroke-width:2;}
 
-  .sq-hit{fill:transparent; cursor:pointer;}
+  .sq-hit{fill:transparent; cursor:pointer; pointer-events:all;}
+  .piece-hit-area{fill:transparent; pointer-events:all;}
 
   .last-move-marker{
     fill:none; stroke:var(--jade); stroke-width:2.5; opacity:0;
