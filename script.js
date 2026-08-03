@@ -1,3 +1,13 @@
+/* =========================================================
+   XIANGQI ENGINE
+   board[row][col] -> {type, color} | null
+   rows 0..9 (0 = black back rank, 9 = red back rank)
+   cols 0..8
+   ========================================================= */
+
+/* Board geometry & starting layout are loaded from config.json at
+   startup (see loadConfigAndInit at the bottom) so the whole game can be
+   re-themed or re-configured without touching this file. */
 let COLS = 9, ROWS = 10;
 let CELL = 62, MARGIN = 34;
 let svgW = 558, svgH = 620;
@@ -38,6 +48,7 @@ function crossedRiver(r,color){
   return color==='black' ? r>=5 : r<=4;
 }
 
+// generate pseudo-legal moves for a single piece (ignores own king safety)
 function pieceMoves(board, r, c){
   const p = board[r][c];
   if(!p) return [];
@@ -47,7 +58,7 @@ function pieceMoves(board, r, c){
     const target = board[nr][nc];
     if(target && target.color === p.color) return false;
     moves.push({r:nr,c:nc, capture: !!target});
-    return !target;
+    return !target; // true means can continue sliding
   };
 
   switch(p.type){
@@ -73,8 +84,8 @@ function pieceMoves(board, r, c){
         const nr=r+dr, nc=c+dc;
         const er=r+dr/2, ec=c+dc/2;
         if(!inBounds(nr,nc)) continue;
-        if(crossedRiver(nr,p.color)) continue;
-        if(board[er][ec]) continue;
+        if(crossedRiver(nr,p.color)) continue; // cannot cross river
+        if(board[er][ec]) continue; // blocked eye
         push(nr,nc);
       }
       break;
@@ -88,7 +99,7 @@ function pieceMoves(board, r, c){
       ];
       for(const s of steps){
         const legR = r+s.leg[0], legC = c+s.leg[1];
-        if(inBounds(legR,legC) && board[legR][legC]) continue;
+        if(inBounds(legR,legC) && board[legR][legC]) continue; // hobbled leg
         const nr=r+s.dr, nc=c+s.dc;
         push(nr,nc);
       }
@@ -117,14 +128,14 @@ function pieceMoves(board, r, c){
             if(!target){
               moves.push({r:nr,c:nc,capture:false});
             } else {
-              screenFound = true;
+              screenFound = true; // this is the screen piece
             }
           } else {
             if(target){
               if(target.color !== p.color){
                 moves.push({r:nr,c:nc,capture:true});
               }
-              break;
+              break; // stop after first piece past screen regardless
             }
           }
           nr+=dr; nc+=dc;
@@ -210,6 +221,7 @@ function allLegalMoves(board, color){
   return result;
 }
 
+/* ---------------- AI (minimax + alpha-beta) ---------------- */
 let VALUES = {};
 let SOLDIER_CROSSED_BONUS = 90;
 function soldierBonus(p, r){
@@ -224,6 +236,7 @@ function evaluate(board){
     const p = board[r][c];
     if(!p) continue;
     let v = VALUES[p.type] + soldierBonus(p,r);
+    // slight central bonus for horses/cannons
     if(p.type==='horse' || p.type==='cannon'){
       const centerDist = Math.abs(c-4);
       v += (4-centerDist)*3;
@@ -238,11 +251,12 @@ function minimax(board, depth, alpha, beta, color){
   const moves = allLegalMoves(board, color);
   if(moves.length===0){
     if(inCheckNow) return color==='red' ? -999000+depth : 999000-depth;
-    return 0;
+    return 0; // stalemate
   }
   if(depth===0){
     return evaluate(board);
   }
+  // order captures first
   moves.sort((a,b)=> (b.capture?1:0) - (a.capture?1:0));
 
   if(color==='red'){
@@ -272,17 +286,22 @@ function minimax(board, depth, alpha, beta, color){
   }
 }
 
+/* 10 difficulty levels: higher level = deeper search + less randomness.
+   "noise" is added to each candidate move's score before picking the
+   best one, so the AI doesn't always play the one "optimal" line —
+   at low levels it visibly makes mistakes, at high levels it still
+   varies between genuinely equal moves instead of repeating openings. */
 const AI_LEVELS = [
-  { depth:1, noise:900  },
-  { depth:1, noise:600  },
-  { depth:2, noise:400  },
-  { depth:2, noise:260  },
-  { depth:2, noise:150  },
-  { depth:3, noise:90   },
-  { depth:3, noise:50   },
-  { depth:3, noise:25   },
-  { depth:4, noise:10   },
-  { depth:4, noise:0    }
+  { depth:1, noise:900  }, // 1
+  { depth:1, noise:600  }, // 2
+  { depth:2, noise:400  }, // 3
+  { depth:2, noise:260  }, // 4
+  { depth:2, noise:150  }, // 5
+  { depth:3, noise:90   }, // 6
+  { depth:3, noise:50   }, // 7
+  { depth:3, noise:25   }, // 8
+  { depth:4, noise:10   }, // 9
+  { depth:4, noise:0    }  // 10
 ];
 const LEVEL_NAMES = [
   'Mới học','Vỡ lòng','Nghiệp dư','Khá','Giỏi',
@@ -302,13 +321,18 @@ function aiBestMove(board, color, level){
     nb[m.to.r][m.to.c] = nb[m.from.r][m.from.c];
     nb[m.from.r][m.from.c] = null;
     const raw = minimax(nb, cfg.depth-1, alpha, beta, color==='red'?'black':'red');
-    const score = color==='red' ? raw : -raw;
+    const score = color==='red' ? raw : -raw; // normalise: higher = better for the side to move
     const noisy = cfg.noise>0 ? score + (Math.random()*2-1)*cfg.noise : score;
     if(noisy>bestNoisy){ bestNoisy=noisy; best=m; }
+    // keep pruning tight using the true (non-noisy) score, for speed
     if(color==='red'){ if(score>alpha) alpha=score; } else { if(-score<beta) beta=-score; }
   }
   return best;
 }
+
+/* =========================================================
+   RENDERING + UI STATE
+   ========================================================= */
 
 let GLYPHS = {};
 
@@ -317,9 +341,9 @@ let state = {
   turn: 'red',
   selected: null,
   legalTargets: [],
-  history: [],
-  mode: 'pvp',
-  aiLevel: 5,
+  history: [],       // {from,to,captured,boardBefore}
+  mode: 'pvp',        // pvp | pve
+  aiLevel: 5,         // 1 (weakest) .. 10 (strongest)
   humanColor: 'red',
   gameOver: false,
   lastMove: null,
@@ -327,9 +351,13 @@ let state = {
   aiTimeoutId: null,
   online: { active:false, room:null, color:null, pollTimer:null, version:0, transport:null, roomCode:null },
   cheat: { killMode:false },
-  currentSave: null
+  currentSave: null // save code (string) once a save is made or loaded, else null
 };
 
+// WebRTC peer-connection state (kept outside `state` since it holds live
+// browser objects, not serialisable game data).
+// Firebase Realtime Database connection state (only usable once
+// config.json's "firebase" block is filled in — see README).
 let fb = { app:null, db:null, roomRef:null, room:null };
 
 const svg = document.getElementById('boardSvg');
@@ -341,6 +369,7 @@ function buildStaticBoard(){
   const ns = 'http://www.w3.org/2000/svg';
   while(svg.firstChild) svg.removeChild(svg.firstChild);
 
+  // defs: wood grain
   const defs = document.createElementNS(ns,'defs');
   defs.innerHTML = `
     <linearGradient id="woodGrain" x1="0" y1="0" x2="1" y2="1">
@@ -363,6 +392,7 @@ function buildStaticBoard(){
   `;
   svg.appendChild(defs);
 
+  // background
   const bg = document.createElementNS(ns,'rect');
   bg.setAttribute('x',0); bg.setAttribute('y',0);
   bg.setAttribute('width',svgW); bg.setAttribute('height',svgH);
@@ -373,6 +403,7 @@ function buildStaticBoard(){
   const g = document.createElementNS(ns,'g');
   g.setAttribute('id','gridGroup');
 
+  // horizontal lines
   for(let r=0;r<10;r++){
     const line = document.createElementNS(ns,'line');
     line.setAttribute('x1', boardX(0)); line.setAttribute('y1', boardY(r));
@@ -380,6 +411,7 @@ function buildStaticBoard(){
     line.setAttribute('class', (r===0||r===9) ? 'border-line' : 'gridline');
     g.appendChild(line);
   }
+  // vertical lines (split at river for inner columns)
   for(let c=0;c<9;c++){
     if(c===0 || c===8){
       const line = document.createElementNS(ns,'line');
@@ -401,6 +433,7 @@ function buildStaticBoard(){
     }
   }
 
+  // palace diagonals
   function palaceX(pRow){
     const l1 = document.createElementNS(ns,'line');
     l1.setAttribute('x1', boardX(3)); l1.setAttribute('y1', boardY(pRow));
@@ -415,6 +448,7 @@ function buildStaticBoard(){
   }
   palaceX(0); palaceX(7);
 
+  // river text
   const riverText = document.createElementNS(ns,'text');
   riverText.setAttribute('x', svgW/2);
   riverText.setAttribute('y', boardY(4.5)+9);
@@ -423,12 +457,14 @@ function buildStaticBoard(){
   riverText.textContent = '楚 河          漢 界';
   g.appendChild(riverText);
 
+  // decorative points near soldier/cannon starting positions
   const pointCols = [1,7];
   const pointRowsCannon = [2,7];
   const pointRowsSoldier = [3,6];
   function drawPoint(r,c){
     const x = boardX(c), y = boardY(r);
     const offs = [[-8,-8,-4,-8,-8,-4],[8,-8,4,-8,8,-4],[-8,8,-4,8,-8,4],[8,8,4,8,8,4]];
+    // simple corner ticks
     const ticks = [
       {dx1:-9,dy1:-9,dx2:-4,dy2:-9},{dx1:-9,dy1:-9,dx2:-9,dy2:-4},
       {dx1:9,dy1:-9,dx2:4,dy2:-9},{dx1:9,dy1:-9,dx2:9,dy2:-4},
@@ -436,6 +472,7 @@ function buildStaticBoard(){
       {dx1:9,dy1:9,dx2:4,dy2:9},{dx1:9,dy1:9,dx2:9,dy2:4}
     ];
     if(c===0 || c===8){
+      // edge columns only get inner ticks - skip outer ones
     }
     for(const t of ticks){
       if((c===0 && (t.dx1<0)) || (c===8 && t.dx1>0)) continue;
@@ -451,6 +488,7 @@ function buildStaticBoard(){
 
   svg.appendChild(g);
 
+  // interactive hit layer
   const hitLayer = document.createElementNS(ns,'g');
   hitLayer.setAttribute('id','hitLayer');
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
@@ -475,6 +513,9 @@ function buildStaticBoard(){
   svg.appendChild(pieceLayer);
 }
 
+// Persistent map of piece-object -> its SVG group, so a piece keeps the
+// same DOM element across renders and can transition smoothly between
+// squares instead of being torn down and rebuilt every move.
 const pieceElements = new Map();
 
 function createPieceElement(p){
@@ -543,18 +584,21 @@ function renderPieces(){
     let group = pieceElements.get(p);
 
     if(!group){
+      // brand new piece on the board (initial setup / reset) -> pop in
       group = createPieceElement(p);
       pieceElements.set(p, group);
       layer.appendChild(group);
       group.style.transition = 'none';
       group.setAttribute('transform', `translate(${x},${y})`);
       group.classList.add('piece-enter');
-      void group.getBoundingClientRect();
+      void group.getBoundingClientRect(); // force reflow before animating
       requestAnimationFrame(()=>{
         group.style.transition = '';
         group.classList.remove('piece-enter');
       });
     } else {
+      // existing piece -> just update target position, CSS transition
+      // on .piece-group{transition:transform ...} does the sliding.
       group.setAttribute('transform', `translate(${x},${y})`);
     }
 
@@ -563,6 +607,7 @@ function renderPieces(){
     group.classList.toggle('disabled', !isHumanTurn());
   }
 
+  // any tracked piece no longer present on the board was just captured
   for(const [p, group] of pieceElements.entries()){
     if(!stillOnBoard.has(p)){
       group.classList.add('piece-captured');
@@ -583,6 +628,7 @@ function renderMarkers(){
   const layer = document.getElementById('markerLayer');
   while(layer.firstChild) layer.removeChild(layer.firstChild);
 
+  // last move markers
   if(state.lastMove){
     for(const pos of [state.lastMove.from, state.lastMove.to]){
       const x = boardX(pos.c), y = boardY(pos.r);
@@ -613,6 +659,8 @@ function renderMarkers(){
   }
 }
 
+/* ---------------- Interaction ---------------- */
+
 function isHumanTurn(){
   if(state.online.active) return state.turn === state.online.color;
   if(state.mode==='pvp') return true;
@@ -622,6 +670,7 @@ function isHumanTurn(){
 function onSquareClick(r,c){
   if(state.gameOver) return;
 
+  // "Cực Tử" cheat: clicking any enemy piece removes it instantly, bypassing turns.
   if(state.cheat.killMode && state.mode!=='pvp' && !state.online.active){
     const target = state.board[r][c];
     const aiColor = state.humanColor==='red' ? 'black' : 'red';
@@ -735,7 +784,7 @@ function checkGameEnd(){
         `Chiếu bí — ${winner==='red'?'Đỏ':'Đen'} đã hạ tướng đối phương.`
       );
     } else {
-      showGameOver('Hòa Cờ', 'Bên đi không còn nước hợp lệ - ván cờ kết thúc hòa.');
+      showGameOver('Hòa Cờ', 'Bên đi không còn nước hợp lệ — ván cờ kết thúc hòa.');
     }
     deleteFinishedSave();
   }
@@ -747,10 +796,14 @@ function showGameOver(title, text){
   document.getElementById('modalOverlay').classList.add('show');
 }
 
+/* ---------------- Cheat Mode (vs AI only) ---------------- */
+
 function aiSideColor(){
   return state.humanColor==='red' ? 'black' : 'red';
 }
 
+// "Đổi Lượt Ngay" — cancels whatever the AI is about to do and hands the
+// turn straight back to the human player.
 function cheatSkipAiTurn(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   if(state.aiTimeoutId){
@@ -766,6 +819,7 @@ function cheatSkipAiTurn(){
   updateStatus();
 }
 
+// "Cực Tử" — remove any enemy piece the player clicks on, no turn required.
 function cheatKillPiece(r,c){
   const target = state.board[r][c];
   if(!target) return;
@@ -784,6 +838,7 @@ function cheatKillPiece(r,c){
   updateStatus();
 }
 
+// "Trảm Tướng" — instantly delete the AI's general and declare victory.
 function cheatBeheadGeneral(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   const enemy = aiSideColor();
@@ -805,6 +860,7 @@ function finishWithCheatWin(){
   deleteFinishedSave();
 }
 
+// "Hồi Sinh Xe Đỏ" — spawn an extra red chariot on the first free square.
 function cheatReviveChariot(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   for(let r=0;r<ROWS;r++){
@@ -819,6 +875,11 @@ function cheatReviveChariot(){
     }
   }
 }
+
+/* ---------------- Save / Load via Firebase Realtime Database ----------------
+   Reuses the same config.json "firebase" block as online play — no extra
+   setup needed. Each save gets a short code and its own path
+   (saves/{code}), and gets auto-deleted once that match finishes. */
 
 function serializeGame(){
   return {
@@ -837,6 +898,7 @@ function restoreGameData(data){
   resetPieceLayer();
   state.board = data.board.map(row=>row.map(p=>p ? {type:p.type,color:p.color} : null));
   state.turn = data.turn;
+  // old saves used 'pve-easy'/'pve-hard'; migrate to the single 'pve' mode + level slider
   state.mode = (data.mode==='pve-easy' || data.mode==='pve-hard') ? 'pve' : (data.mode || 'pvp');
   state.aiLevel = data.aiLevel || (data.mode==='pve-hard' ? 8 : data.mode==='pve-easy' ? 3 : 5);
   state.humanColor = data.humanColor || 'red';
@@ -858,6 +920,8 @@ function restoreGameData(data){
   updateUndoBtn();
 }
 
+// Short, easy-to-read/share code for one saved match (avoids visually
+// ambiguous characters like 0/O/1/I).
 function generateSaveCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -867,7 +931,7 @@ function generateSaveCode(){
 
 async function saveGame(){
   if(!fbAvailable()){
-    flashStatus('Chưa cấu hình Firebase trong config.json.', true, 'saveStatus');
+    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
     return;
   }
   const code = generateSaveCode();
@@ -877,15 +941,15 @@ async function saveGame(){
     await fb.db.ref('saves/'+code).set({ content, savedAt: Date.now() });
     document.getElementById('saveCodeInput').value = code;
     state.currentSave = code;
-    flashStatus(`Đã lưu! Mã ván đấu: ${code} - ghi lại để tải lại sau.`, false, 'saveStatus');
+    flashStatus(`🔥 Đã lưu! Mã ván đấu: ${code} — ghi lại để tải lại sau.`, false, 'saveStatus');
   }catch(err){
-    flashStatus('Lưu thất bại - kiểm tra lại.', true, 'saveStatus');
+    flashStatus('Lưu thất bại — kiểm tra cấu hình Firebase/luật bảo mật.', true, 'saveStatus');
   }
 }
 
 async function loadGame(){
   if(!fbAvailable()){
-    flashStatus('Chưa cấu hình Firebase trong config.json.', true, 'saveStatus');
+    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
     return;
   }
   const code = document.getElementById('saveCodeInput').value.trim().toUpperCase();
@@ -908,12 +972,15 @@ async function loadGame(){
     updateCheatPanelVisibility();
     updateAiLevelBoxVisibility();
     state.currentSave = code;
-    flashStatus(`Đã tải ván đấu "${code}".`, false, 'saveStatus');
+    flashStatus(`✅ Đã tải ván đấu "${code}".`, false, 'saveStatus');
   }catch(err){
     flashStatus('Không tìm thấy ván đấu với mã này.', true, 'saveStatus');
   }
 }
 
+// Called once a loaded/saved match actually finishes (checkmate, stalemate,
+// or a cheat auto-win) — removes its save slot since there's nothing left
+// to resume.
 async function deleteFinishedSave(){
   const code = state.currentSave;
   if(!code) return;
@@ -921,8 +988,9 @@ async function deleteFinishedSave(){
   try{
     fbInit();
     await fb.db.ref('saves/'+code).remove();
-    flashStatus(`Ván đã kết thúc - đã xoá file lưu "${code}".`, false, 'saveStatus');
+    flashStatus(`🗑️ Ván đã kết thúc — đã xoá file lưu "${code}".`, false, 'saveStatus');
   }catch(err){
+    /* best-effort cleanup, no need to bother the user if this fails */
   }
 }
 
@@ -933,6 +1001,11 @@ function flashStatus(text, isWarn, targetId){
   el.classList.toggle('live', !isWarn);
   setTimeout(()=>{ if(el.textContent===text){ el.textContent=''; el.classList.remove('warn','live'); } }, 4000);
 }
+
+/* ---------------- Remote play: Firebase Realtime Database (real-time) ----------------
+   Requires config.json's "firebase" block to be filled in with your own
+   project's config (see README) — the buttons simply explain that if
+   it's missing. */
 
 function startRemoteGame(color){
   state.online.active = true;
@@ -968,7 +1041,7 @@ function showOnlineActive(){
   document.getElementById('roomCodeDisplay').textContent = state.online.color==='red' ? 'Đỏ' : 'Đen';
 
   const base = state.turn===state.online.color
-    ? 'Đến lượt bạn - cứ đi, đối thủ sẽ thấy ngay.'
+    ? 'Đến lượt bạn — cứ đi, đối thủ sẽ thấy ngay.'
     : 'Đang chờ đối thủ đi (thời gian thực).';
   document.getElementById('onlineRoleLabel').textContent =
     state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
@@ -1009,7 +1082,7 @@ function fbInit(){
 
 async function fbCreateRoom(){
   if(!fbAvailable()){
-    setFbStatus('Chưa cấu hình Firebase trong config.json.', true);
+    setFbStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true);
     return;
   }
   try{ fbInit(); }catch(err){ setFbStatus('Lỗi khởi tạo Firebase: '+err.message, true); return; }
@@ -1031,17 +1104,17 @@ async function fbCreateRoom(){
   try{
     await fb.roomRef.set(payload);
   }catch(err){
-    setFbStatus('Không tạo được phòng - kiểm tra config.', true);
+    setFbStatus('Không tạo được phòng — kiểm tra config/luật bảo mật Firebase.', true);
     return;
   }
   fbListen();
-  setFbStatus(`Đã tạo phòng ${code} - gửi mã này cho đối thủ.`, false);
+  setFbStatus(`🟢 Đã tạo phòng ${code} — gửi mã này cho đối thủ.`, false);
   showOnlineActive();
 }
 
 async function fbJoinRoom(){
   if(!fbAvailable()){
-    setFbStatus('Chưa cấu hình Firebase trong config.json.', true);
+    setFbStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true);
     return;
   }
   const code = document.getElementById('fbJoinCodeInput').value.trim().toUpperCase();
@@ -1053,7 +1126,7 @@ async function fbJoinRoom(){
   try{
     snap = await ref.once('value');
   }catch(err){
-    setFbStatus('Không đọc được phòng - kiểm tra lại mã.', true);
+    setFbStatus('Không đọc được phòng — kiểm tra mã hoặc luật bảo mật Firebase.', true);
     return;
   }
   const data = snap.val();
@@ -1063,10 +1136,10 @@ async function fbJoinRoom(){
   fb.roomRef = ref;
   startRemoteGame('black');
   state.online.roomCode = code;
-  state.online.version = 0;
+  state.online.version = 0; // force-apply whatever the host currently has
   fbListen();
   fbApplyState(data);
-  setFbStatus(`Đã vào phòng ${code}!`, false);
+  setFbStatus(`🟢 Đã vào phòng ${code}!`, false);
   showOnlineActive();
 }
 
@@ -1084,14 +1157,40 @@ function fbStopListening(){
   fb.room = null;
 }
 
+// Firebase pushes the *whole* board each time rather than a single move,
+// so we just replace local state wholesale instead of routing through
+// doMove() — simpler and self-correcting if a message is ever missed.
 function fbApplyState(data){
   if(!data || data.version==null || data.version === state.online.version) return;
-  let board;
-  try{ board = JSON.parse(data.boardJSON); }catch(err){ return; }
-  resetPieceLayer();
-  state.board = board;
+  let lastMove = null;
+  try{ lastMove = JSON.parse(data.lastMoveJSON); }catch(err){ lastMove = null; }
+
+  // Fast path: replay just the one from→to move on our existing board,
+  // reusing the same piece object reference. renderPieces() diffs by
+  // object identity, so this makes only the moved piece slide/fade —
+  // matching what the mover sees locally — instead of tearing down and
+  // popping all 32 pieces back in, which looked like the page reloading.
+  const movingPiece = lastMove && state.board[lastMove.from.r][lastMove.from.c];
+  if(lastMove && movingPiece){
+    const capturedPiece = state.board[lastMove.to.r][lastMove.to.c];
+    state.board[lastMove.to.r][lastMove.to.c] = movingPiece;
+    state.board[lastMove.from.r][lastMove.from.c] = null;
+    if(capturedPiece){
+      addCapturedChip(capturedPiece);
+    }
+    state.history.push({from:{...lastMove.from}, to:{...lastMove.to}, piece:movingPiece, captured:capturedPiece||null});
+    addHistoryEntry(state.history[state.history.length-1]);
+  } else {
+    // No usable move info (e.g. first sync right after joining a room) —
+    // fall back to a full rebuild just this once.
+    let board;
+    try{ board = JSON.parse(data.boardJSON); }catch(err){ return; }
+    resetPieceLayer();
+    state.board = board;
+  }
+
   state.turn = data.turn;
-  try{ state.lastMove = JSON.parse(data.lastMoveJSON); }catch(err){ state.lastMove = null; }
+  state.lastMove = lastMove;
   state.online.version = data.version;
   state.selected = null;
   state.legalTargets = [];
@@ -1160,6 +1259,9 @@ function updateAiLevelBadge(){
   document.getElementById('aiLevelBadge').textContent = `${state.aiLevel} · ${LEVEL_NAMES[state.aiLevel-1]}`;
 }
 
+
+/* ---------------- UI helpers ---------------- */
+
 function updateTurnIndicator(){
   const dot = document.getElementById('turnDot');
   const label = document.getElementById('turnLabel');
@@ -1202,7 +1304,7 @@ function addHistoryEntry(entry){
   const box = document.getElementById('historyBox');
   const div = document.createElement('div');
   const n = state.history.length;
-  const colorLbl = entry.piece.color==='red' ? 'Đ' : 'Đ̶';
+  const colorLbl = entry.piece.color==='red' ? 'Đ' : 'Đ̶'; // fallback simple
   const glyph = GLYPHS[entry.piece.color][entry.piece.type];
   const from = `${colLetters[entry.from.c]}${entry.from.r}`;
   const to = `${colLetters[entry.to.c]}${entry.to.r}`;
@@ -1218,7 +1320,7 @@ function updateUndoBtn(){
 function undo(){
   if(state.history.length===0 || state.online.active) return;
   if(state.aiTimeoutId){ clearTimeout(state.aiTimeoutId); state.aiTimeoutId = null; state.aiThinking = false; }
-  const steps = (state.mode!=='pvp') ? 2 : 1;
+  const steps = (state.mode!=='pvp') ? 2 : 1; // undo AI + human move together
   for(let i=0;i<steps;i++){
     const last = state.history.pop();
     if(!last) break;
@@ -1263,6 +1365,8 @@ function resetGame(){
   updateStatus();
   updateUndoBtn();
 }
+
+/* ---------------- Wire up controls ---------------- */
 
 document.getElementById('menuFab').addEventListener('click', toggleDrawer);
 document.getElementById('drawerClose').addEventListener('click', closeDrawer);
@@ -1316,6 +1420,7 @@ updateCheatPanelVisibility();
 updateAiLevelBoxVisibility();
 updateAiLevelBadge();
 
+/* ---------------- Init: load config.json, then boot the game ---------------- */
 async function loadConfigAndInit(){
   try{
     const res = await fetch('config.json');
@@ -1326,7 +1431,7 @@ async function loadConfigAndInit(){
     document.body.innerHTML =
       '<div style="color:#f4e8d0; font-family:sans-serif; padding:40px; text-align:center;">'
       + 'Không tải được <code>config.json</code>.<br>'
-      + 'Nếu bạn mở file này trực tiếp (đường dẫn <code>file://</code>), trình duyệt sẽ chặn fetch - '
+      + 'Nếu bạn mở file này trực tiếp (đường dẫn <code>file://</code>), trình duyệt sẽ chặn fetch — '
       + 'hãy chạy qua một server tĩnh (vd. <code>npx serve</code>, VS Code Live Server) hoặc GitHub Pages.'
       + '</div>';
     return;
