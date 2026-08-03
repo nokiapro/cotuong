@@ -372,6 +372,7 @@
     fill:none; stroke:var(--jade); stroke-width:2.5; opacity:0;
     animation: markerFadeIn 0.35s ease forwards;
     transform-box: fill-box; transform-origin: center;
+    pointer-events:none;
   }
   @keyframes markerFadeIn{
     from{opacity:0; transform:scale(1.15);}
@@ -382,11 +383,13 @@
     fill:var(--jade); opacity:0; filter:drop-shadow(0 0 6px var(--jade-glow));
     transform-box: fill-box; transform-origin: center;
     animation: dotPop 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    pointer-events:none;
   }
   .move-dot.capture-ring{
     fill:none; stroke:var(--jade); stroke-width:3.5; opacity:0; filter:drop-shadow(0 0 6px var(--jade-glow));
     transform-box: fill-box; transform-origin: center;
     animation: dotPop 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    pointer-events:none;
   }
   @keyframes dotPop{
     from{opacity:0; transform:scale(0.2);}
