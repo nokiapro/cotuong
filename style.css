@@ -18,8 +18,8 @@
     --cream:#f4e8d0;
     --muted:#b9a583;
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0; touch-action:manipulation;}
   body{
     min-height:100vh;
     background:
@@ -69,6 +69,7 @@
     width:100%;
   }
 
+  /* ---- Hamburger button (always fixed, never pushes the board) ---- */
   .menu-fab{
     position:fixed;
     top:22px;
@@ -91,6 +92,7 @@
     color:#2a1c10;
   }
 
+  /* ---- Drawer overlay + panel ---- */
   .drawer-overlay{
     position:fixed; inset:0;
     background:rgba(10,7,4,0.6);
@@ -347,7 +349,13 @@
     border:2px solid rgba(200,151,63,0.35);
     pointer-events:none;
   }
-  svg{display:block; width:100%; height:auto;}
+  svg{
+    display:block; width:100%; height:auto;
+    touch-action:manipulation;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
   .board-bg{fill:url(#woodGrain);}
   .gridline{stroke:var(--line); stroke-width:2.2; fill:none; opacity:0.85;}
   .border-line{stroke:var(--ink); stroke-width:3.5; fill:none;}
@@ -387,21 +395,29 @@
     to{opacity:0.85; transform:scale(1);}
   }
 
+  /* Outer group only ever carries a translate() so it can transition
+     smoothly between board squares without fighting other transforms.
+     Pure ease-out (no overshoot/bounce) reads as smoother than a spring
+     curve, and avoiding per-frame filter recalculation keeps it from
+     ever stuttering on longer moves (chariot/cannon crossing the board). */
   .piece-group{
     cursor:pointer;
-    transition: transform 0.34s cubic-bezier(0.32,1.3,0.44,1.02);
+    will-change: transform;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .piece-group.disabled{cursor:default;}
   .piece-group.dragging{transition:none;}
 
+  /* Inner group carries scale/opacity for enter, capture and hover states,
+     kept independent from the outer translate so both can animate at once. */
   .piece-visual{
     transform-box: fill-box;
     transform-origin: center;
-    transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+    will-change: transform;
+    transition: transform 0.16s ease-out, opacity 0.16s ease-out;
   }
   .piece-group:not(.disabled):hover .piece-visual{
-    transform: scale(1.07) translateY(-1px);
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+    transform: scale(1.06);
   }
   .piece-group.piece-enter .piece-visual{
     opacity:0;
@@ -409,14 +425,11 @@
   }
   .piece-group.piece-captured .piece-visual{
     opacity:0;
-    transform: scale(0.3) rotate(12deg);
-    transition: transform 0.32s cubic-bezier(0.55,0,1,0.45), opacity 0.32s ease;
+    transform: scale(0.3);
+    transition: transform 0.26s ease-in, opacity 0.26s ease-in;
   }
   .piece-group.piece-selected .piece-visual{
-    transform: scale(1.08) translateY(-2px);
-  }
-  .piece-group.piece-moving .piece-visual{
-    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5));
+    transform: scale(1.08);
   }
 
   .piece-shadow{fill:rgba(0,0,0,0.4); filter:blur(2px);}
@@ -441,11 +454,13 @@
     stroke-width:3;
     fill:none;
     opacity:0;
-    filter:drop-shadow(0 0 8px var(--jade-glow));
     transition: opacity 0.18s ease;
+  }
+  .piece-selected .piece-ring{
+    opacity:1;
+    filter:drop-shadow(0 0 8px var(--jade-glow));
     animation: ringPulse 1.4s ease-in-out infinite;
   }
-  .piece-selected .piece-ring{ opacity:1; }
   @keyframes ringPulse{
     0%,100%{ stroke-opacity:1; }
     50%{ stroke-opacity:0.45; }
