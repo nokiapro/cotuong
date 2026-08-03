@@ -69,7 +69,6 @@
     width:100%;
   }
 
-  /* ---- Hamburger button (always fixed, never pushes the board) ---- */
   .menu-fab{
     position:fixed;
     top:22px;
@@ -92,7 +91,6 @@
     color:#2a1c10;
   }
 
-  /* ---- Drawer overlay + panel ---- */
   .drawer-overlay{
     position:fixed; inset:0;
     background:rgba(10,7,4,0.6);
@@ -326,7 +324,6 @@
   .history-box::-webkit-scrollbar{width:5px;}
   .history-box::-webkit-scrollbar-thumb{background:rgba(200,151,63,0.3);border-radius:4px;}
 
-  /* ---- Board ---- */
   .board-wrap{
     position:relative;
     padding:26px;
@@ -395,11 +392,6 @@
     to{opacity:0.85; transform:scale(1);}
   }
 
-  /* Outer group only ever carries a translate() so it can transition
-     smoothly between board squares without fighting other transforms.
-     Pure ease-out (no overshoot/bounce) reads as smoother than a spring
-     curve, and avoiding per-frame filter recalculation keeps it from
-     ever stuttering on longer moves (chariot/cannon crossing the board). */
   .piece-group{
     cursor:pointer;
     will-change: transform;
@@ -408,8 +400,6 @@
   .piece-group.disabled{cursor:default;}
   .piece-group.dragging{transition:none;}
 
-  /* Inner group carries scale/opacity for enter, capture and hover states,
-     kept independent from the outer translate so both can animate at once. */
   .piece-visual{
     transform-box: fill-box;
     transform-origin: center;
