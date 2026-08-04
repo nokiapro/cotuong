@@ -1,13 +1,3 @@
-/* =========================================================
-   XIANGQI ENGINE
-   board[row][col] -> {type, color} | null
-   rows 0..9 (0 = black back rank, 9 = red back rank)
-   cols 0..8
-   ========================================================= */
-
-/* Board geometry & starting layout are loaded from config.json at
-   startup (see loadConfigAndInit at the bottom) so the whole game can be
-   re-themed or re-configured without touching this file. */
 let COLS = 9, ROWS = 10;
 let CELL = 62, MARGIN = 34;
 let svgW = 558, svgH = 620;
@@ -48,7 +38,6 @@ function crossedRiver(r,color){
   return color==='black' ? r>=5 : r<=4;
 }
 
-// generate pseudo-legal moves for a single piece (ignores own king safety)
 function pieceMoves(board, r, c){
   const p = board[r][c];
   if(!p) return [];
@@ -58,7 +47,7 @@ function pieceMoves(board, r, c){
     const target = board[nr][nc];
     if(target && target.color === p.color) return false;
     moves.push({r:nr,c:nc, capture: !!target});
-    return !target; // true means can continue sliding
+    return !target;
   };
 
   switch(p.type){
@@ -84,8 +73,8 @@ function pieceMoves(board, r, c){
         const nr=r+dr, nc=c+dc;
         const er=r+dr/2, ec=c+dc/2;
         if(!inBounds(nr,nc)) continue;
-        if(crossedRiver(nr,p.color)) continue; // cannot cross river
-        if(board[er][ec]) continue; // blocked eye
+        if(crossedRiver(nr,p.color)) continue;
+        if(board[er][ec]) continue;
         push(nr,nc);
       }
       break;
@@ -99,7 +88,7 @@ function pieceMoves(board, r, c){
       ];
       for(const s of steps){
         const legR = r+s.leg[0], legC = c+s.leg[1];
-        if(inBounds(legR,legC) && board[legR][legC]) continue; // hobbled leg
+        if(inBounds(legR,legC) && board[legR][legC]) continue;
         const nr=r+s.dr, nc=c+s.dc;
         push(nr,nc);
       }
@@ -128,14 +117,14 @@ function pieceMoves(board, r, c){
             if(!target){
               moves.push({r:nr,c:nc,capture:false});
             } else {
-              screenFound = true; // this is the screen piece
+              screenFound = true;
             }
           } else {
             if(target){
               if(target.color !== p.color){
                 moves.push({r:nr,c:nc,capture:true});
               }
-              break; // stop after first piece past screen regardless
+              break;
             }
           }
           nr+=dr; nc+=dc;
@@ -221,7 +210,6 @@ function allLegalMoves(board, color){
   return result;
 }
 
-/* ---------------- AI (minimax + alpha-beta) ---------------- */
 let VALUES = {};
 let SOLDIER_CROSSED_BONUS = 90;
 function soldierBonus(p, r){
@@ -236,7 +224,6 @@ function evaluate(board){
     const p = board[r][c];
     if(!p) continue;
     let v = VALUES[p.type] + soldierBonus(p,r);
-    // slight central bonus for horses/cannons
     if(p.type==='horse' || p.type==='cannon'){
       const centerDist = Math.abs(c-4);
       v += (4-centerDist)*3;
@@ -251,12 +238,12 @@ function minimax(board, depth, alpha, beta, color){
   const moves = allLegalMoves(board, color);
   if(moves.length===0){
     if(inCheckNow) return color==='red' ? -999000+depth : 999000-depth;
-    return 0; // stalemate
+    return 0;
   }
   if(depth===0){
     return evaluate(board);
   }
-  // order captures first
+
   moves.sort((a,b)=> (b.capture?1:0) - (a.capture?1:0));
 
   if(color==='red'){
@@ -286,27 +273,49 @@ function minimax(board, depth, alpha, beta, color){
   }
 }
 
-/* 10 difficulty levels: higher level = deeper search + less randomness.
-   "noise" is added to each candidate move's score before picking the
-   best one, so the AI doesn't always play the one "optimal" line —
-   at low levels it visibly makes mistakes, at high levels it still
-   varies between genuinely equal moves instead of repeating openings. */
 const AI_LEVELS = [
-  { depth:1, noise:900  }, // 1
-  { depth:1, noise:600  }, // 2
-  { depth:2, noise:400  }, // 3
-  { depth:2, noise:260  }, // 4
-  { depth:2, noise:150  }, // 5
-  { depth:3, noise:90   }, // 6
-  { depth:3, noise:50   }, // 7
-  { depth:3, noise:25   }, // 8
-  { depth:4, noise:10   }, // 9
-  { depth:4, noise:0    }  // 10
+  { depth:1, noise:900  },
+  { depth:1, noise:600  },
+  { depth:2, noise:400  },
+  { depth:2, noise:260  },
+  { depth:2, noise:150  },
+  { depth:3, noise:90   },
+  { depth:3, noise:50   },
+  { depth:3, noise:25   },
+  { depth:4, noise:10   },
+  { depth:4, noise:0    }
 ];
 const LEVEL_NAMES = [
   'Mới học','Vỡ lòng','Nghiệp dư','Khá','Giỏi',
   'Cao thủ','Chuyên nghiệp','Đại kiện tướng','Siêu đẳng','Bất khả chiến bại'
 ];
+
+const VN_PIECE_NAME = {
+  general:'Tướng', advisor:'Sĩ', elephant:'Tượng',
+  horse:'Mã', chariot:'Xe', cannon:'Pháo', soldier:'Tốt'
+};
+function displayCol(c, color){ return color==='red' ? 9-c : c+1; }
+
+function moveNotation(piece, from, to){
+  const color = piece.color;
+  const name = VN_PIECE_NAME[piece.type];
+  const fromCol = displayCol(from.c, color);
+  const toCol = displayCol(to.c, color);
+  const forwardSign = color==='red' ? -1 : 1;
+  let action, target;
+  if(from.c === to.c){
+    const rows = Math.abs(to.r-from.r);
+    action = ((to.r-from.r)*forwardSign > 0) ? 'tiến' : 'thoái';
+    target = rows;
+  } else if(from.r === to.r){
+    action = 'bình';
+    target = toCol;
+  } else {
+    action = ((to.r-from.r)*forwardSign > 0) ? 'tiến' : 'thoái';
+    target = toCol;
+  }
+  return `${name} ${fromCol} ${action} ${target}`;
+}
 
 function aiBestMove(board, color, level){
   const cfg = AI_LEVELS[Math.min(Math.max(level,1),10) - 1];
@@ -321,18 +330,180 @@ function aiBestMove(board, color, level){
     nb[m.to.r][m.to.c] = nb[m.from.r][m.from.c];
     nb[m.from.r][m.from.c] = null;
     const raw = minimax(nb, cfg.depth-1, alpha, beta, color==='red'?'black':'red');
-    const score = color==='red' ? raw : -raw; // normalise: higher = better for the side to move
+    const score = color==='red' ? raw : -raw;
     const noisy = cfg.noise>0 ? score + (Math.random()*2-1)*cfg.noise : score;
     if(noisy>bestNoisy){ bestNoisy=noisy; best=m; }
-    // keep pruning tight using the true (non-noisy) score, for speed
     if(color==='red'){ if(score>alpha) alpha=score; } else { if(-score<beta) beta=-score; }
   }
   return best;
 }
 
-/* =========================================================
-   RENDERING + UI STATE
-   ========================================================= */
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx) audioCtx = new Ctx();
+  }
+  return audioCtx;
+}
+function playTone(freq, duration, type, delay, gainStart){
+  if(!state.soundOn) return;
+  const ctx = getAudioCtx();
+  if(!ctx) return;
+  if(ctx.state==='suspended') ctx.resume();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  const t0 = ctx.currentTime + (delay||0);
+  gain.gain.setValueAtTime(gainStart!=null?gainStart:0.15, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0+duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0+duration+0.02);
+}
+function sfxMove(){ playTone(340, 0.09, 'triangle'); }
+function sfxCapture(){ playTone(200,0.07,'square'); playTone(130,0.09,'square',0.055); }
+function sfxCheck(){ playTone(880,0.11,'sine'); playTone(1180,0.14,'sine',0.09); }
+function sfxWin(){ [523,659,784,1047].forEach((f,i)=>playTone(f,0.18,'triangle',i*0.11,0.13)); }
+function sfxLose(){ [420,360,300,240].forEach((f,i)=>playTone(f,0.22,'sawtooth',i*0.14,0.07)); }
+function sfxDraw(){ [500,500].forEach((f,i)=>playTone(f,0.16,'sine',i*0.2,0.1)); }
+
+function sfxGameResult(winnerColor, isDraw){
+  if(isDraw){ sfxDraw(); return; }
+  let myColor = null;
+  if(state.online.active && !state.online.spectator) myColor = state.online.color;
+  else if(state.mode==='pve') myColor = state.humanColor;
+  if(myColor){
+    (winnerColor===myColor) ? sfxWin() : sfxLose();
+  } else {
+    sfxWin();
+  }
+}
+
+let confettiRunning = false;
+function fireConfetti(){
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth*dpr;
+  canvas.height = window.innerHeight*dpr;
+  canvas.style.display = 'block';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  const colors = ['#c8973f','#f0ce8e','#3fae7a','#7fe0b4','#b3211a','#f4e8d0'];
+  const pieces = [];
+  const count = 120;
+  for(let i=0;i<count;i++){
+    pieces.push({
+      x: Math.random()*window.innerWidth,
+      y: -20 - Math.random()*window.innerHeight*0.4,
+      vx: (Math.random()-0.5)*2.2,
+      vy: 2 + Math.random()*2.5,
+      size: 5 + Math.random()*5,
+      rot: Math.random()*Math.PI*2,
+      vrot: (Math.random()-0.5)*0.3,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      life: 0
+    });
+  }
+  confettiRunning = true;
+  const start = performance.now();
+  function frame(now){
+    if(!confettiRunning) return;
+    const elapsed = now-start;
+    ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+    let anyAlive = false;
+    for(const p of pieces){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.rot += p.vrot; p.life = elapsed;
+      if(p.y < window.innerHeight+30) anyAlive = true;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, 1 - elapsed/3200);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+      ctx.restore();
+    }
+    if(anyAlive && elapsed<3200){
+      requestAnimationFrame(frame);
+    } else {
+      confettiRunning = false;
+      canvas.style.display = 'none';
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+const THEMES = {
+  wood: {
+    wood1:'#8a5a34', wood2:'#6e4324', wood3:'#4a2c17',
+    grain1:'#e7c98d', grain2:'#dab976', grain3:'#c9a563',
+    accent:'#3fae7a', accentGlow:'#7fe0b4'
+  },
+  jade: {
+    wood1:'#1f5e46', wood2:'#154536', wood3:'#0c2a20',
+    grain1:'#bdeed8', grain2:'#8fd6b8', grain3:'#5fb894',
+    accent:'#e0b84a', accentGlow:'#f5d888'
+  },
+  rosewood: {
+    wood1:'#6e2a20', wood2:'#4f1a14', wood3:'#33100c',
+    grain1:'#e8ab93', grain2:'#d68467', grain3:'#b96448',
+    accent:'#7fe0b4', accentGlow:'#b7f2d8'
+  },
+  marble: {
+    wood1:'#c9c0ac', wood2:'#a89c84', wood3:'#8a7d64',
+    grain1:'#f7f2e8', grain2:'#ece2cf', grain3:'#d9c9ac',
+    accent:'#3a6ea8', accentGlow:'#7fb0e0'
+  },
+  royal: {
+    wood1:'#4a2d6e', wood2:'#34204f', wood3:'#211433',
+    grain1:'#dcc8f5', grain2:'#c3a8ec', grain3:'#a58bd6',
+    accent:'#e0b84a', accentGlow:'#f7dd8e'
+  },
+  midnight: {
+    wood1:'#233a5e', wood2:'#182943', wood3:'#0e1a2c',
+    grain1:'#c9dcf5', grain2:'#a8c4ea', grain3:'#87a8d6',
+    accent:'#c8973f', accentGlow:'#f0ce8e'
+  },
+  sakura: {
+    wood1:'#b95a72', wood2:'#8f3d52', wood3:'#602737',
+    grain1:'#ffd9e4', grain2:'#ffb8cd', grain3:'#f294b3',
+    accent:'#5fb894', accentGlow:'#9fe3c4'
+  },
+  obsidian: {
+    wood1:'#2b2b2e', wood2:'#1c1c1f', wood3:'#101012',
+    grain1:'#e8c976', grain2:'#c9a55a', grain3:'#a3823f',
+    accent:'#c8973f', accentGlow:'#f0ce8e'
+  }
+};
+const THEME_STORAGE_KEY = 'co-tuong-theme';
+
+function applyTheme(themeId){
+  const t = THEMES[themeId] || THEMES.wood;
+  const root = document.documentElement.style;
+  root.setProperty('--wood-1', t.wood1);
+  root.setProperty('--wood-2', t.wood2);
+  root.setProperty('--wood-3', t.wood3);
+  root.setProperty('--jade', t.accent);
+  root.setProperty('--jade-glow', t.accentGlow);
+
+  const stops = document.querySelectorAll('#woodGrain stop');
+  if(stops.length===3){
+    stops[0].setAttribute('stop-color', t.grain1);
+    stops[1].setAttribute('stop-color', t.grain2);
+    stops[2].setAttribute('stop-color', t.grain3);
+  }
+
+  document.querySelectorAll('.theme-swatch').forEach(b=>b.classList.toggle('active', b.dataset.theme===themeId));
+  try{ localStorage.setItem(THEME_STORAGE_KEY, themeId); }catch(err){}
+}
+
+function loadSavedTheme(){
+  let saved = 'wood';
+  try{ saved = localStorage.getItem(THEME_STORAGE_KEY) || 'wood'; }catch(err){}
+  applyTheme(saved);
+}
 
 let GLYPHS = {};
 
@@ -341,23 +512,21 @@ let state = {
   turn: 'red',
   selected: null,
   legalTargets: [],
-  history: [],       // {from,to,captured,boardBefore}
-  mode: 'pvp',        // pvp | pve
-  aiLevel: 5,         // 1 (weakest) .. 10 (strongest)
+  history: [],
+  mode: 'pvp',
+  aiLevel: 5,
   humanColor: 'red',
   gameOver: false,
   lastMove: null,
   aiThinking: false,
   aiTimeoutId: null,
-  online: { active:false, room:null, color:null, pollTimer:null, version:0, transport:null, roomCode:null },
+  online: { active:false, room:null, color:null, pollTimer:null, version:0, transport:null, roomCode:null, spectator:false },
   cheat: { killMode:false },
-  currentSave: null // save code (string) once a save is made or loaded, else null
+  currentSave: null,
+  soundOn: true,
+  replay: { active:false, moves:[], index:0, savedBoard:null, savedTurn:null }
 };
 
-// WebRTC peer-connection state (kept outside `state` since it holds live
-// browser objects, not serialisable game data).
-// Firebase Realtime Database connection state (only usable once
-// config.json's "firebase" block is filled in — see README).
 let fb = { app:null, db:null, roomRef:null, room:null };
 
 const svg = document.getElementById('boardSvg');
@@ -369,7 +538,6 @@ function buildStaticBoard(){
   const ns = 'http://www.w3.org/2000/svg';
   while(svg.firstChild) svg.removeChild(svg.firstChild);
 
-  // defs: wood grain
   const defs = document.createElementNS(ns,'defs');
   defs.innerHTML = `
     <linearGradient id="woodGrain" x1="0" y1="0" x2="1" y2="1">
@@ -392,7 +560,6 @@ function buildStaticBoard(){
   `;
   svg.appendChild(defs);
 
-  // background
   const bg = document.createElementNS(ns,'rect');
   bg.setAttribute('x',0); bg.setAttribute('y',0);
   bg.setAttribute('width',svgW); bg.setAttribute('height',svgH);
@@ -403,7 +570,6 @@ function buildStaticBoard(){
   const g = document.createElementNS(ns,'g');
   g.setAttribute('id','gridGroup');
 
-  // horizontal lines
   for(let r=0;r<10;r++){
     const line = document.createElementNS(ns,'line');
     line.setAttribute('x1', boardX(0)); line.setAttribute('y1', boardY(r));
@@ -411,7 +577,7 @@ function buildStaticBoard(){
     line.setAttribute('class', (r===0||r===9) ? 'border-line' : 'gridline');
     g.appendChild(line);
   }
-  // vertical lines (split at river for inner columns)
+
   for(let c=0;c<9;c++){
     if(c===0 || c===8){
       const line = document.createElementNS(ns,'line');
@@ -433,7 +599,6 @@ function buildStaticBoard(){
     }
   }
 
-  // palace diagonals
   function palaceX(pRow){
     const l1 = document.createElementNS(ns,'line');
     l1.setAttribute('x1', boardX(3)); l1.setAttribute('y1', boardY(pRow));
@@ -448,7 +613,6 @@ function buildStaticBoard(){
   }
   palaceX(0); palaceX(7);
 
-  // river text
   const riverText = document.createElementNS(ns,'text');
   riverText.setAttribute('x', svgW/2);
   riverText.setAttribute('y', boardY(4.5)+9);
@@ -457,14 +621,12 @@ function buildStaticBoard(){
   riverText.textContent = '楚 河          漢 界';
   g.appendChild(riverText);
 
-  // decorative points near soldier/cannon starting positions
   const pointCols = [1,7];
   const pointRowsCannon = [2,7];
   const pointRowsSoldier = [3,6];
   function drawPoint(r,c){
     const x = boardX(c), y = boardY(r);
     const offs = [[-8,-8,-4,-8,-8,-4],[8,-8,4,-8,8,-4],[-8,8,-4,8,-8,4],[8,8,4,8,8,4]];
-    // simple corner ticks
     const ticks = [
       {dx1:-9,dy1:-9,dx2:-4,dy2:-9},{dx1:-9,dy1:-9,dx2:-9,dy2:-4},
       {dx1:9,dy1:-9,dx2:4,dy2:-9},{dx1:9,dy1:-9,dx2:9,dy2:-4},
@@ -472,7 +634,6 @@ function buildStaticBoard(){
       {dx1:9,dy1:9,dx2:4,dy2:9},{dx1:9,dy1:9,dx2:9,dy2:4}
     ];
     if(c===0 || c===8){
-      // edge columns only get inner ticks - skip outer ones
     }
     for(const t of ticks){
       if((c===0 && (t.dx1<0)) || (c===8 && t.dx1>0)) continue;
@@ -488,7 +649,6 @@ function buildStaticBoard(){
 
   svg.appendChild(g);
 
-  // interactive hit layer
   const hitLayer = document.createElementNS(ns,'g');
   hitLayer.setAttribute('id','hitLayer');
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
@@ -513,15 +673,18 @@ function buildStaticBoard(){
   svg.appendChild(pieceLayer);
 }
 
-// Persistent map of piece-object -> its SVG group, so a piece keeps the
-// same DOM element across renders and can transition smoothly between
-// squares instead of being torn down and rebuilt every move.
 const pieceElements = new Map();
 
 function createPieceElement(p){
   const ns = 'http://www.w3.org/2000/svg';
   const group = document.createElementNS(ns,'g');
   group.setAttribute('class','piece-group');
+
+  const hitArea = document.createElementNS(ns,'circle');
+  hitArea.setAttribute('cx',0); hitArea.setAttribute('cy',0);
+  hitArea.setAttribute('r', CELL/2);
+  hitArea.setAttribute('class','piece-hit-area');
+  group.appendChild(hitArea);
 
   const visual = document.createElementNS(ns,'g');
   visual.setAttribute('class','piece-visual');
@@ -584,21 +747,18 @@ function renderPieces(){
     let group = pieceElements.get(p);
 
     if(!group){
-      // brand new piece on the board (initial setup / reset) -> pop in
       group = createPieceElement(p);
       pieceElements.set(p, group);
       layer.appendChild(group);
       group.style.transition = 'none';
       group.setAttribute('transform', `translate(${x},${y})`);
       group.classList.add('piece-enter');
-      void group.getBoundingClientRect(); // force reflow before animating
+      void group.getBoundingClientRect();
       requestAnimationFrame(()=>{
         group.style.transition = '';
         group.classList.remove('piece-enter');
       });
     } else {
-      // existing piece -> just update target position, CSS transition
-      // on .piece-group{transition:transform ...} does the sliding.
       group.setAttribute('transform', `translate(${x},${y})`);
     }
 
@@ -607,7 +767,6 @@ function renderPieces(){
     group.classList.toggle('disabled', !isHumanTurn());
   }
 
-  // any tracked piece no longer present on the board was just captured
   for(const [p, group] of pieceElements.entries()){
     if(!stillOnBoard.has(p)){
       group.classList.add('piece-captured');
@@ -628,7 +787,6 @@ function renderMarkers(){
   const layer = document.getElementById('markerLayer');
   while(layer.firstChild) layer.removeChild(layer.firstChild);
 
-  // last move markers
   if(state.lastMove){
     for(const pos of [state.lastMove.from, state.lastMove.to]){
       const x = boardX(pos.c), y = boardY(pos.r);
@@ -659,8 +817,6 @@ function renderMarkers(){
   }
 }
 
-/* ---------------- Interaction ---------------- */
-
 function isHumanTurn(){
   if(state.online.active) return state.turn === state.online.color;
   if(state.mode==='pvp') return true;
@@ -668,9 +824,8 @@ function isHumanTurn(){
 }
 
 function onSquareClick(r,c){
-  if(state.gameOver) return;
+  if(state.gameOver || state.replay.active) return;
 
-  // "Cực Tử" cheat: clicking any enemy piece removes it instantly, bypassing turns.
   if(state.cheat.killMode && state.mode!=='pvp' && !state.online.active){
     const target = state.board[r][c];
     const aiColor = state.humanColor==='red' ? 'black' : 'red';
@@ -745,6 +900,9 @@ function doMove(from, to, opts={}){
   updateStatus();
   updateUndoBtn();
 
+  captured ? sfxCapture() : sfxMove();
+  if(isInCheck(state.board, state.turn)) sfxCheck();
+
   checkGameEnd();
 
   if(state.online.active){
@@ -775,19 +933,30 @@ function triggerAiMove(){
 function checkGameEnd(){
   const moves = allLegalMoves(state.board, state.turn);
   const inCheck = isInCheck(state.board, state.turn);
-  if(moves.length===0){
+  if(moves.length===0 && !state.gameOver){
     state.gameOver = true;
     if(inCheck){
       const winner = state.turn==='red' ? 'black' : 'red';
       showGameOver(
         winner==='red' ? 'Đỏ Thắng!' : 'Đen Thắng!',
-        `Chiếu bí — ${winner==='red'?'Đỏ':'Đen'} đã hạ tướng đối phương.`
+        `Chiếu bí - ${winner==='red'?'Đỏ':'Đen'} đã hạ tướng đối phương.`
       );
+      sfxGameResult(winner, false);
+      fireConfetti();
     } else {
-      showGameOver('Hòa Cờ', 'Bên đi không còn nước hợp lệ — ván cờ kết thúc hòa.');
+      showGameOver('Hòa Cờ', 'Bên đi không còn nước hợp lệ - ván cờ kết thúc hòa.');
+      sfxGameResult(null, true);
     }
     deleteFinishedSave();
+    clearOnlineChatIfActive();
   }
+}
+
+function clearOnlineChatIfActive(){
+  if(!state.online.active) return;
+  const box = document.getElementById('chatMessages');
+  if(box) box.innerHTML = '';
+  if(fb.roomRef) fb.roomRef.child('chat').remove();
 }
 
 function showGameOver(title, text){
@@ -796,14 +965,10 @@ function showGameOver(title, text){
   document.getElementById('modalOverlay').classList.add('show');
 }
 
-/* ---------------- Cheat Mode (vs AI only) ---------------- */
-
 function aiSideColor(){
   return state.humanColor==='red' ? 'black' : 'red';
 }
 
-// "Đổi Lượt Ngay" — cancels whatever the AI is about to do and hands the
-// turn straight back to the human player.
 function cheatSkipAiTurn(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   if(state.aiTimeoutId){
@@ -819,7 +984,6 @@ function cheatSkipAiTurn(){
   updateStatus();
 }
 
-// "Cực Tử" — remove any enemy piece the player clicks on, no turn required.
 function cheatKillPiece(r,c){
   const target = state.board[r][c];
   if(!target) return;
@@ -830,6 +994,7 @@ function cheatKillPiece(r,c){
   addCapturedChip(target);
   renderPieces();
   renderMarkers();
+  sfxCapture();
 
   if(wasGeneral){
     finishWithCheatWin();
@@ -838,7 +1003,6 @@ function cheatKillPiece(r,c){
   updateStatus();
 }
 
-// "Trảm Tướng" — instantly delete the AI's general and declare victory.
 function cheatBeheadGeneral(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   const enemy = aiSideColor();
@@ -857,10 +1021,11 @@ function finishWithCheatWin(){
     state.humanColor==='red' ? 'Đỏ Thắng!' : 'Đen Thắng!',
     'Tướng địch đã bị tiêu diệt bằng chiêu gian lận.'
   );
+  sfxGameResult(state.humanColor, false);
+  fireConfetti();
   deleteFinishedSave();
 }
 
-// "Hồi Sinh Xe Đỏ" — spawn an extra red chariot on the first free square.
 function cheatReviveChariot(){
   if(state.mode==='pvp' || state.online.active || state.gameOver) return;
   for(let r=0;r<ROWS;r++){
@@ -875,11 +1040,6 @@ function cheatReviveChariot(){
     }
   }
 }
-
-/* ---------------- Save / Load via Firebase Realtime Database ----------------
-   Reuses the same config.json "firebase" block as online play — no extra
-   setup needed. Each save gets a short code and its own path
-   (saves/{code}), and gets auto-deleted once that match finishes. */
 
 function serializeGame(){
   return {
@@ -898,7 +1058,6 @@ function restoreGameData(data){
   resetPieceLayer();
   state.board = data.board.map(row=>row.map(p=>p ? {type:p.type,color:p.color} : null));
   state.turn = data.turn;
-  // old saves used 'pve-easy'/'pve-hard'; migrate to the single 'pve' mode + level slider
   state.mode = (data.mode==='pve-easy' || data.mode==='pve-hard') ? 'pve' : (data.mode || 'pvp');
   state.aiLevel = data.aiLevel || (data.mode==='pve-hard' ? 8 : data.mode==='pve-easy' ? 3 : 5);
   state.humanColor = data.humanColor || 'red';
@@ -920,8 +1079,6 @@ function restoreGameData(data){
   updateUndoBtn();
 }
 
-// Short, easy-to-read/share code for one saved match (avoids visually
-// ambiguous characters like 0/O/1/I).
 function generateSaveCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -931,7 +1088,7 @@ function generateSaveCode(){
 
 async function saveGame(){
   if(!fbAvailable()){
-    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
+    flashStatus('Chưa cấu hình Firebase.', true, 'saveStatus');
     return;
   }
   const code = generateSaveCode();
@@ -941,15 +1098,15 @@ async function saveGame(){
     await fb.db.ref('saves/'+code).set({ content, savedAt: Date.now() });
     document.getElementById('saveCodeInput').value = code;
     state.currentSave = code;
-    flashStatus(`🔥 Đã lưu! Mã ván đấu: ${code} — ghi lại để tải lại sau.`, false, 'saveStatus');
+    flashStatus(`Đã lưu! Mã ván đấu: ${code} — ghi lại để tải lại sau.`, false, 'saveStatus');
   }catch(err){
-    flashStatus('Lưu thất bại — kiểm tra cấu hình Firebase/luật bảo mật.', true, 'saveStatus');
+    flashStatus('Lưu thất bại.', true, 'saveStatus');
   }
 }
 
 async function loadGame(){
   if(!fbAvailable()){
-    flashStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true, 'saveStatus');
+    flashStatus('Chưa cấu hình Firebase.', true, 'saveStatus');
     return;
   }
   const code = document.getElementById('saveCodeInput').value.trim().toUpperCase();
@@ -972,15 +1129,12 @@ async function loadGame(){
     updateCheatPanelVisibility();
     updateAiLevelBoxVisibility();
     state.currentSave = code;
-    flashStatus(`✅ Đã tải ván đấu "${code}".`, false, 'saveStatus');
+    flashStatus(`Đã tải ván đấu "${code}".`, false, 'saveStatus');
   }catch(err){
     flashStatus('Không tìm thấy ván đấu với mã này.', true, 'saveStatus');
   }
 }
 
-// Called once a loaded/saved match actually finishes (checkmate, stalemate,
-// or a cheat auto-win) — removes its save slot since there's nothing left
-// to resume.
 async function deleteFinishedSave(){
   const code = state.currentSave;
   if(!code) return;
@@ -988,9 +1142,8 @@ async function deleteFinishedSave(){
   try{
     fbInit();
     await fb.db.ref('saves/'+code).remove();
-    flashStatus(`🗑️ Ván đã kết thúc — đã xoá file lưu "${code}".`, false, 'saveStatus');
+    flashStatus(`Ván đã kết thúc - đã xoá file lưu "${code}".`, false, 'saveStatus');
   }catch(err){
-    /* best-effort cleanup, no need to bother the user if this fails */
   }
 }
 
@@ -1002,14 +1155,11 @@ function flashStatus(text, isWarn, targetId){
   setTimeout(()=>{ if(el.textContent===text){ el.textContent=''; el.classList.remove('warn','live'); } }, 4000);
 }
 
-/* ---------------- Remote play: Firebase Realtime Database (real-time) ----------------
-   Requires config.json's "firebase" block to be filled in with your own
-   project's config (see README) — the buttons simply explain that if
-   it's missing. */
-
 function startRemoteGame(color){
+  stopReplayIfActive();
   state.online.active = true;
   state.online.color = color;
+  state.online.spectator = false;
   state.online.transport = 'firebase';
   state.mode = 'pvp';
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='pvp'));
@@ -1038,10 +1188,19 @@ function startRemoteGame(color){
 function showOnlineActive(){
   document.getElementById('onlineIdle').style.display = 'none';
   document.getElementById('onlineActive').style.display = '';
-  document.getElementById('roomCodeDisplay').textContent = state.online.color==='red' ? 'Đỏ' : 'Đen';
+  document.getElementById('requestUndoBtn').style.display = state.online.spectator ? 'none' : '';
 
+  if(state.online.spectator){
+    document.getElementById('roomCodeDisplay').textContent = 'Xem';
+    const base = 'Đang xem trực tiếp - bạn không thể đi quân.';
+    document.getElementById('onlineRoleLabel').textContent =
+      state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
+    return;
+  }
+
+  document.getElementById('roomCodeDisplay').textContent = state.online.color==='red' ? 'Đỏ' : 'Đen';
   const base = state.turn===state.online.color
-    ? 'Đến lượt bạn — cứ đi, đối thủ sẽ thấy ngay.'
+    ? 'Đến lượt bạn - cứ đi, đối thủ sẽ thấy ngay.'
     : 'Đang chờ đối thủ đi (thời gian thực).';
   document.getElementById('onlineRoleLabel').textContent =
     state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
@@ -1082,7 +1241,7 @@ function fbInit(){
 
 async function fbCreateRoom(){
   if(!fbAvailable()){
-    setFbStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true);
+    setFbStatus('Chưa cấu hình Firebase.', true);
     return;
   }
   try{ fbInit(); }catch(err){ setFbStatus('Lỗi khởi tạo Firebase: '+err.message, true); return; }
@@ -1104,17 +1263,19 @@ async function fbCreateRoom(){
   try{
     await fb.roomRef.set(payload);
   }catch(err){
-    setFbStatus('Không tạo được phòng — kiểm tra config/luật bảo mật Firebase.', true);
+    setFbStatus('Không tạo được phòng.', true);
     return;
   }
   fbListen();
-  setFbStatus(`🟢 Đã tạo phòng ${code} — gửi mã này cho đối thủ.`, false);
+  fbListenUndoRequest();
+  fbListenChat();
+  setFbStatus(`Đã tạo phòng ${code} - gửi mã này cho đối thủ.`, false);
   showOnlineActive();
 }
 
 async function fbJoinRoom(){
   if(!fbAvailable()){
-    setFbStatus('Chưa cấu hình Firebase trong config.json — xem hướng dẫn ở README.', true);
+    setFbStatus('Chưa cấu hình Firebase.', true);
     return;
   }
   const code = document.getElementById('fbJoinCodeInput').value.trim().toUpperCase();
@@ -1126,7 +1287,7 @@ async function fbJoinRoom(){
   try{
     snap = await ref.once('value');
   }catch(err){
-    setFbStatus('Không đọc được phòng — kiểm tra mã hoặc luật bảo mật Firebase.', true);
+    setFbStatus('Không đọc được phòng.', true);
     return;
   }
   const data = snap.val();
@@ -1136,10 +1297,45 @@ async function fbJoinRoom(){
   fb.roomRef = ref;
   startRemoteGame('black');
   state.online.roomCode = code;
-  state.online.version = 0; // force-apply whatever the host currently has
+  state.online.version = 0;
   fbListen();
+  fbListenUndoRequest();
+  fbListenChat();
   fbApplyState(data);
   setFbStatus(`🟢 Đã vào phòng ${code}!`, false);
+  showOnlineActive();
+}
+
+async function fbSpectateRoom(){
+  if(!fbAvailable()){
+    setFbStatus('Chưa cấu hình Firebase.', true);
+    return;
+  }
+  const code = document.getElementById('fbJoinCodeInput').value.trim().toUpperCase();
+  if(!code){ setFbStatus('Nhập mã phòng trước đã.', true); return; }
+  try{ fbInit(); }catch(err){ setFbStatus('Lỗi khởi tạo Firebase: '+err.message, true); return; }
+
+  const ref = fb.db.ref('rooms/'+code);
+  let snap;
+  try{
+    snap = await ref.once('value');
+  }catch(err){
+    setFbStatus('Không đọc được phòng.', true);
+    return;
+  }
+  const data = snap.val();
+  if(!data){ setFbStatus('Không tìm thấy phòng này.', true); return; }
+
+  fb.room = code;
+  fb.roomRef = ref;
+  startRemoteGame(null);
+  state.online.spectator = true;
+  state.online.roomCode = code;
+  state.online.version = 0;
+  fbListen();
+  fbListenChat();
+  fbApplyState(data);
+  setFbStatus(`Đang xem phòng ${code}.`, false);
   showOnlineActive();
 }
 
@@ -1157,19 +1353,11 @@ function fbStopListening(){
   fb.room = null;
 }
 
-// Firebase pushes the *whole* board each time rather than a single move,
-// so we just replace local state wholesale instead of routing through
-// doMove() — simpler and self-correcting if a message is ever missed.
 function fbApplyState(data){
   if(!data || data.version==null || data.version === state.online.version) return;
   let lastMove = null;
   try{ lastMove = JSON.parse(data.lastMoveJSON); }catch(err){ lastMove = null; }
 
-  // Fast path: replay just the one from→to move on our existing board,
-  // reusing the same piece object reference. renderPieces() diffs by
-  // object identity, so this makes only the moved piece slide/fade —
-  // matching what the mover sees locally — instead of tearing down and
-  // popping all 32 pieces back in, which looked like the page reloading.
   const movingPiece = lastMove && state.board[lastMove.from.r][lastMove.from.c];
   if(lastMove && movingPiece){
     const capturedPiece = state.board[lastMove.to.r][lastMove.to.c];
@@ -1181,8 +1369,6 @@ function fbApplyState(data){
     state.history.push({from:{...lastMove.from}, to:{...lastMove.to}, piece:movingPiece, captured:capturedPiece||null});
     addHistoryEntry(state.history[state.history.length-1]);
   } else {
-    // No usable move info (e.g. first sync right after joining a room) —
-    // fall back to a full rebuild just this once.
     let board;
     try{ board = JSON.parse(data.boardJSON); }catch(err){ return; }
     resetPieceLayer();
@@ -1216,15 +1402,113 @@ function fbPushState(){
   fb.roomRef.update(payload).catch(()=>setFbStatus('Gửi nước đi thất bại, kiểm tra mạng.', true));
 }
 
+function requestUndo(){
+  if(!fb.roomRef || !state.online.active || state.online.spectator) return;
+  if(state.history.length===0) return;
+  fb.roomRef.child('undoRequest').set({by: state.online.color, status:'pending', ts: Date.now()});
+  setFbStatus('Đã gửi yêu cầu đi lại, đang chờ đối thủ...', false);
+}
+
+function fbListenUndoRequest(){
+  if(!fb.roomRef) return;
+  fb.roomRef.child('undoRequest').on('value', snap=>{
+    const req = snap.val();
+    const overlay = document.getElementById('undoModalOverlay');
+    if(!req){ overlay.classList.remove('show'); return; }
+
+    if(req.status==='pending' && !state.online.spectator && req.by !== state.online.color){
+      document.getElementById('undoModalText').textContent =
+        `Đối thủ (${req.by==='red'?'Đỏ':'Đen'}) xin đi lại nước vừa rồi.`;
+      overlay.classList.add('show');
+    } else if(req.status==='declined' && req.by === state.online.color){
+      overlay.classList.remove('show');
+      setFbStatus('Đối thủ đã từ chối yêu cầu đi lại.', true);
+      fb.roomRef.child('undoRequest').remove();
+    } else {
+      overlay.classList.remove('show');
+    }
+  });
+}
+
+function acceptOnlineUndo(){
+  if(state.history.length===0) return;
+  const last = state.history.pop();
+  state.board[last.from.r][last.from.c] = last.piece;
+  state.board[last.to.r][last.to.c] = last.captured;
+  if(last.captured){
+    const container = document.getElementById(last.captured.color==='red' ? 'capturedRed' : 'capturedBlack');
+    if(container.lastChild) container.removeChild(container.lastChild);
+  }
+  const box = document.getElementById('historyBox');
+  if(box.lastChild) box.removeChild(box.lastChild);
+  state.turn = last.piece.color;
+  state.lastMove = state.history.length ? {from: state.history[state.history.length-1].from, to: state.history[state.history.length-1].to} : null;
+  state.gameOver = false;
+  state.selected = null;
+  state.legalTargets = [];
+  document.getElementById('modalOverlay').classList.remove('show');
+  document.getElementById('undoModalOverlay').classList.remove('show');
+  renderPieces();
+  renderMarkers();
+  updateStatus();
+  updateUndoBtn();
+  if(fb.roomRef){
+    fb.roomRef.child('undoRequest').remove();
+    fbPushState();
+  }
+  setFbStatus('Đã đồng ý đi lại.', false);
+}
+
+function declineOnlineUndo(){
+  if(fb.roomRef) fb.roomRef.child('undoRequest').update({status:'declined'});
+  document.getElementById('undoModalOverlay').classList.remove('show');
+}
+
+function fbListenChat(){
+  if(!fb.roomRef) return;
+  fb.roomRef.child('chat').limitToLast(50).on('child_added', snap=>{
+    appendChatMessage(snap.val());
+  });
+}
+
+function appendChatMessage(msg){
+  if(!msg || !msg.text) return;
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  const roleClass = msg.color==='red' ? 'chat-red' : msg.color==='black' ? 'chat-black' : 'chat-spectator';
+  const who = msg.color==='red' ? 'Đỏ' : msg.color==='black' ? 'Đen' : 'Khán giả';
+  div.className = 'chat-msg ' + roleClass;
+  const senderSpan = document.createElement('span');
+  senderSpan.className = 'chat-sender';
+  senderSpan.textContent = who + ':';
+  div.appendChild(senderSpan);
+  div.appendChild(document.createTextNode(' ' + msg.text));
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim().slice(0, 200);
+  if(!text || !fb.roomRef) return;
+  const myColor = state.online.spectator ? 'spectator' : state.online.color;
+  fb.roomRef.child('chat').push({color: myColor, text, ts: Date.now()});
+  input.value = '';
+}
+
 function leaveRoom(){
+  if(fb.roomRef){ fb.roomRef.child('undoRequest').off(); fb.roomRef.child('chat').off(); }
   fbStopListening();
   state.online.active = false;
   state.online.color = null;
+  state.online.spectator = false;
   state.online.transport = null;
   state.online.roomCode = null;
   document.getElementById('onlineIdle').style.display = '';
   document.getElementById('onlineActive').style.display = 'none';
   document.getElementById('fbJoinCodeInput').value = '';
+  document.getElementById('undoModalOverlay').classList.remove('show');
+  document.getElementById('chatMessages').innerHTML = '';
   setFbStatus('', false);
   resetGame();
 }
@@ -1258,9 +1542,6 @@ function updateAiLevelBadge(){
   document.getElementById('aiLevelSlider').value = state.aiLevel;
   document.getElementById('aiLevelBadge').textContent = `${state.aiLevel} · ${LEVEL_NAMES[state.aiLevel-1]}`;
 }
-
-
-/* ---------------- UI helpers ---------------- */
 
 function updateTurnIndicator(){
   const dot = document.getElementById('turnDot');
@@ -1299,16 +1580,12 @@ function addCapturedChip(piece){
   container.appendChild(chip);
 }
 
-const colLetters = ['a','b','c','d','e','f','g','h','i'];
 function addHistoryEntry(entry){
   const box = document.getElementById('historyBox');
   const div = document.createElement('div');
   const n = state.history.length;
-  const colorLbl = entry.piece.color==='red' ? 'Đ' : 'Đ̶'; // fallback simple
-  const glyph = GLYPHS[entry.piece.color][entry.piece.type];
-  const from = `${colLetters[entry.from.c]}${entry.from.r}`;
-  const to = `${colLetters[entry.to.c]}${entry.to.r}`;
-  div.textContent = `${n}. [${entry.piece.color==='red'?'Đỏ':'Đen'}] ${glyph} ${from}→${to}${entry.captured? ' ×'+GLYPHS[entry.captured.color][entry.captured.type]:''}`;
+  const notation = moveNotation(entry.piece, entry.from, entry.to);
+  div.textContent = `${n}. [${entry.piece.color==='red'?'Đỏ':'Đen'}] ${notation}${entry.captured? ' (ăn '+GLYPHS[entry.captured.color][entry.captured.type]+')':''}`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
@@ -1320,7 +1597,7 @@ function updateUndoBtn(){
 function undo(){
   if(state.history.length===0 || state.online.active) return;
   if(state.aiTimeoutId){ clearTimeout(state.aiTimeoutId); state.aiTimeoutId = null; state.aiThinking = false; }
-  const steps = (state.mode!=='pvp') ? 2 : 1; // undo AI + human move together
+  const steps = (state.mode!=='pvp') ? 2 : 1;
   for(let i=0;i<steps;i++){
     const last = state.history.pop();
     if(!last) break;
@@ -1345,7 +1622,128 @@ function undo(){
   updateUndoBtn();
 }
 
+let replayTimer = null;
+
+function stopReplayIfActive(){
+  if(replayTimer){ clearInterval(replayTimer); replayTimer=null; }
+  if(!state.replay.active) return;
+  state.replay.active = false;
+  document.getElementById('replayBar').style.display = 'none';
+  const btn = document.getElementById('replayPlayBtn');
+  btn.textContent = '▶';
+  btn.classList.remove('playing');
+}
+
+function enterReplay(){
+  if(state.history.length===0) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+  closeDrawer();
+  state.replay.active = true;
+  state.replay.moves = state.history.slice();
+  state.replay.savedBoard = state.board;
+  state.replay.savedTurn = state.turn;
+  state.replay.index = 0;
+  rebuildReplayBoard(0);
+  resetPieceLayer();
+  document.getElementById('replayBar').style.display = '';
+  renderPieces();
+  renderMarkers();
+  updateReplayUI();
+}
+
+function rebuildReplayBoard(index){
+  const board = initialBoard();
+  let lastMove = null;
+  for(let i=0;i<index;i++){
+    const mv = state.replay.moves[i];
+    board[mv.to.r][mv.to.c] = {type:mv.piece.type, color:mv.piece.color};
+    board[mv.from.r][mv.from.c] = null;
+    lastMove = {from:mv.from, to:mv.to};
+  }
+  state.board = board;
+  state.lastMove = lastMove;
+}
+
+function goToReplayIndex(targetIndex){
+  targetIndex = Math.max(0, Math.min(targetIndex, state.replay.moves.length));
+  const cur = state.replay.index;
+  if(targetIndex === cur) return;
+
+  if(targetIndex === cur+1){
+    const mv = state.replay.moves[cur];
+    const moving = state.board[mv.from.r][mv.from.c];
+    if(moving){
+      state.board[mv.to.r][mv.to.c] = moving;
+      state.board[mv.from.r][mv.from.c] = null;
+      state.lastMove = {from:mv.from, to:mv.to};
+    } else {
+      rebuildReplayBoard(targetIndex);
+      resetPieceLayer();
+    }
+  } else if(targetIndex === cur-1){
+    const mv = state.replay.moves[targetIndex];
+    const moving = state.board[mv.to.r][mv.to.c];
+    if(moving){
+      state.board[mv.from.r][mv.from.c] = moving;
+      state.board[mv.to.r][mv.to.c] = mv.captured ? {type:mv.captured.type, color:mv.captured.color} : null;
+      state.lastMove = targetIndex>0 ? {from:state.replay.moves[targetIndex-1].from, to:state.replay.moves[targetIndex-1].to} : null;
+    } else {
+      rebuildReplayBoard(targetIndex);
+      resetPieceLayer();
+    }
+  } else {
+    rebuildReplayBoard(targetIndex);
+    resetPieceLayer();
+  }
+
+  state.replay.index = targetIndex;
+  renderPieces();
+  renderMarkers();
+  updateReplayUI();
+}
+
+function updateReplayUI(){
+  const total = state.replay.moves.length;
+  const idx = state.replay.index;
+  document.getElementById('replayMoveLabel').textContent = `Nước ${idx} / ${total}`;
+  document.getElementById('replayPrevBtn').disabled = idx===0;
+  document.getElementById('replayStartBtn').disabled = idx===0;
+  document.getElementById('replayNextBtn').disabled = idx===total;
+  document.getElementById('replayEndBtn').disabled = idx===total;
+}
+
+function toggleReplayPlay(){
+  const btn = document.getElementById('replayPlayBtn');
+  if(replayTimer){
+    clearInterval(replayTimer); replayTimer = null;
+    btn.textContent = '▶'; btn.classList.remove('playing');
+    return;
+  }
+  btn.textContent = '⏸'; btn.classList.add('playing');
+  replayTimer = setInterval(()=>{
+    if(state.replay.index >= state.replay.moves.length){
+      clearInterval(replayTimer); replayTimer = null;
+      btn.textContent = '▶'; btn.classList.remove('playing');
+      return;
+    }
+    goToReplayIndex(state.replay.index+1);
+  }, 750);
+}
+
+function exitReplay(){
+  stopReplayIfActive();
+  state.board = state.replay.savedBoard;
+  state.turn = state.replay.savedTurn;
+  state.selected = null;
+  state.legalTargets = [];
+  resetPieceLayer();
+  renderPieces();
+  renderMarkers();
+  updateStatus();
+}
+
 function resetGame(){
+  stopReplayIfActive();
   state.board = initialBoard();
   state.turn = 'red';
   state.selected = null;
@@ -1365,8 +1763,6 @@ function resetGame(){
   updateStatus();
   updateUndoBtn();
 }
-
-/* ---------------- Wire up controls ---------------- */
 
 document.getElementById('menuFab').addEventListener('click', toggleDrawer);
 document.getElementById('drawerClose').addEventListener('click', closeDrawer);
@@ -1404,9 +1800,34 @@ document.getElementById('leaveRoomBtn').addEventListener('click', leaveRoom);
 
 document.getElementById('fbCreateRoomBtn').addEventListener('click', fbCreateRoom);
 document.getElementById('fbJoinRoomBtn').addEventListener('click', fbJoinRoom);
+document.getElementById('fbSpectateBtn').addEventListener('click', fbSpectateRoom);
 document.getElementById('fbJoinCodeInput').addEventListener('keydown', (e)=>{
   if(e.key==='Enter') fbJoinRoom();
 });
+
+document.getElementById('requestUndoBtn').addEventListener('click', requestUndo);
+document.getElementById('undoModalAcceptBtn').addEventListener('click', acceptOnlineUndo);
+document.getElementById('undoModalDeclineBtn').addEventListener('click', declineOnlineUndo);
+
+document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') sendChat();
+});
+
+document.getElementById('soundToggle').addEventListener('change', (e)=>{
+  state.soundOn = e.target.checked;
+});
+document.querySelectorAll('.theme-swatch').forEach(btn=>{
+  btn.addEventListener('click', ()=> applyTheme(btn.dataset.theme));
+});
+
+document.getElementById('modalReplayBtn').addEventListener('click', enterReplay);
+document.getElementById('replayStartBtn').addEventListener('click', ()=>goToReplayIndex(0));
+document.getElementById('replayPrevBtn').addEventListener('click', ()=>goToReplayIndex(state.replay.index-1));
+document.getElementById('replayNextBtn').addEventListener('click', ()=>goToReplayIndex(state.replay.index+1));
+document.getElementById('replayEndBtn').addEventListener('click', ()=>goToReplayIndex(state.replay.moves.length));
+document.getElementById('replayPlayBtn').addEventListener('click', toggleReplayPlay);
+document.getElementById('replayCloseBtn').addEventListener('click', exitReplay);
 
 document.getElementById('skipAiBtn').addEventListener('click', cheatSkipAiTurn);
 document.getElementById('beheadBtn').addEventListener('click', cheatBeheadGeneral);
@@ -1420,7 +1841,6 @@ updateCheatPanelVisibility();
 updateAiLevelBoxVisibility();
 updateAiLevelBadge();
 
-/* ---------------- Init: load config.json, then boot the game ---------------- */
 async function loadConfigAndInit(){
   try{
     const res = await fetch('config.json');
@@ -1454,6 +1874,7 @@ async function loadConfigAndInit(){
   state.board = initialBoard();
 
   buildStaticBoard();
+  loadSavedTheme();
   renderPieces();
   renderMarkers();
   updateStatus();
