@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" href="https://i.ibb.co/F4TYrk6s/LOGOCOTUONG.png" type="image/png" sizes="16x16">
-<title>Cờ Tướng Cao Cấp</title>
+<title>Cờ Tướng</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,8 +12,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 </head>
 <body>
-
-<canvas id="confettiCanvas"></canvas>
 
 <div class="header">
   <div class="eyebrow">象 棋 · Chinese Chess</div>
@@ -29,18 +27,6 @@
   <div class="drawer-head">
     <h3>象棋 · Menu</h3>
     <button class="drawer-close" id="drawerClose">✕</button>
-  </div>
-
-  <div class="drawer-section">
-    <h4>Giao Diện Bàn Cờ</h4>
-    <div class="join-row">
-      <select id="themeSelect" class="action-btn" style="width:100%; text-align:left; background:#1c1410;">
-        <option value="default">🪵 Gỗ Trầm Cổ Điển</option>
-        <option value="jade">🍏 Trọc Ngọc Sang Trọng</option>
-        <option value="cyberpunk">⚡ Cyberpunk Neon</option>
-        <option value="ink">🖊️ Thủy Mặc Tối Giản</option>
-      </select>
-    </div>
   </div>
 
   <div class="drawer-section">
@@ -65,7 +51,7 @@
     </div>
 
     <div class="action-row">
-      <button class="action-btn" id="undoBtn">Xin Đi lại</button>
+      <button class="action-btn" id="undoBtn">Đi lại</button>
       <button class="action-btn" id="resetBtn">Ván mới</button>
     </div>
 
@@ -88,14 +74,8 @@
   </div>
 
   <div class="drawer-section">
-    <h4>Lịch Sử & Xem Lại Ván Đấu</h4>
+    <h4>Lịch Sử Nước Đi</h4>
     <div class="history-box" id="historyBox"></div>
-    <div class="replay-controls">
-      <button class="replay-btn" id="repFirst">⏮ Đầu</button>
-      <button class="replay-btn" id="repPrev">◀ Lùi</button>
-      <button class="replay-btn" id="repNext">Tới ▶</button>
-      <button class="replay-btn" id="repLast">Cuối ⏭</button>
-    </div>
   </div>
 
   <div class="drawer-section">
@@ -108,8 +88,7 @@
         </div>
         <div class="join-row">
           <input type="text" id="fbJoinCodeInput" placeholder="Nhập mã phòng" maxlength="6">
-          <button class="action-btn" id="fbJoinRoomBtn">Chơi</button>
-          <button class="action-btn" id="fbSpectateBtn" style="background:rgba(200,151,63,0.2);">Xem</button>
+          <button class="action-btn" id="fbJoinRoomBtn">Vào phòng</button>
         </div>
         <div class="online-status" id="fbStatus"></div>
       </div>
@@ -118,31 +97,23 @@
     <div id="onlineActive" style="display:none;">
       <div class="room-code-box">
         <div class="room-code-label">
-          Vai trò của bạn:
+          Bạn đang cầm quân
           <span class="killmode-active-badge" id="onlineLiveBadge">TRỰC TIẾP</span>
         </div>
         <div class="room-code" id="roomCodeDisplay">Đỏ</div>
       </div>
       <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
-      
-      <!-- Khung Trò Chuyện Online -->
-      <div class="chat-box" id="chatBox">
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input-row">
-          <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." maxlength="60">
-          <button class="action-btn" id="sendChatBtn">Gửi</button>
-        </div>
-      </div>
-
-      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">Rời phòng</button>
+      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">Kết thúc ván</button>
     </div>
     <div class="online-status" id="onlineStatus"></div>
   </div>
 
   <div class="drawer-section" id="cheatPanel" style="display:none;">
     <h4>Chế Độ Gian Lận</h4>
-    <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Chỉ dùng khi đấu máy.</div>
+    <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Chỉ dùng khi đấu máy - các nút này bẻ luật để bạn luôn thắng.</div>
+
     <button class="action-btn" id="skipAiBtn" style="width:100%; margin-bottom:8px;">Đổi Lượt Ngay</button>
+
     <div class="cheat-toggle" id="killModeRow">
       <span>Cực Tử (bấm quân địch để giết)</span>
       <label class="switch">
@@ -150,6 +121,7 @@
         <span class="switch-slider"></span>
       </label>
     </div>
+
     <button class="action-btn cheat-danger" id="beheadBtn" style="width:100%; margin:8px 0;">Trảm Tướng (Thắng Ngay)</button>
     <button class="action-btn cheat-danger" id="reviveChariotBtn" style="width:100%;">Hồi Sinh Xe Đỏ</button>
   </div>
@@ -161,15 +133,13 @@
   </div>
 </div>
 
-<div class="footer-note">Chạm để chọn quân, ô xanh ngọc là nước đi hợp lệ. Tướng đối mặt trực diện là nước cấm.</div>
+<div class="footer-note">Chạm để chọn quân, ô xanh ngọc là nước đi hợp lệ. Tướng đối mặt trực diện (không quân chắn) là nước cấm - luật "lộ mặt tướng" được áp dụng đầy đủ.</div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box">
     <h2 id="modalTitle">Chiếu Bí!</h2>
     <p id="modalText">Đỏ đã thắng ván cờ.</p>
-    <div class="modal-btns" id="modalBtns">
-      <button id="modalBtn">Chơi Lại</button>
-    </div>
+    <button id="modalBtn">Chơi Lại</button>
   </div>
 </div>
 
