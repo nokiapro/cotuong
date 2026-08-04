@@ -30,7 +30,7 @@
   </div>
 
   <div class="drawer-section">
-    <h4>Ván Cờ</h4>
+    <h4>VÁN CỜ</h4>
     <div class="turn-indicator" id="turnIndicator">
       <div class="turn-dot red" id="turnDot"></div>
       <div id="turnLabel">Lượt của Đỏ</div>
@@ -59,14 +59,36 @@
       <input type="text" id="saveCodeInput" placeholder="Mã ván đấu" maxlength="5">
       <button class="action-btn" id="loadBtn">Tải</button>
     </div>
-    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;">Lưu ván đấu</button>
+    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;">Lưu ván đấu mới</button>
     <div class="online-status" id="saveStatus"></div>
 
     <div class="status-msg" id="statusMsg"></div>
   </div>
 
   <div class="drawer-section">
-    <h4>Quân Đã Ăn</h4>
+    <h4>GIAO DIỆN &amp; ÂM THANH</h4>
+    <div class="cheat-toggle" style="margin-bottom:14px;">
+      <span>Âm thanh</span>
+      <label class="switch">
+        <input type="checkbox" id="soundToggle" checked>
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Giao diện bàn cờ</div>
+    <div class="theme-row" id="themeRow">
+      <button class="theme-swatch theme-wood active" data-theme="wood" title="Gỗ trầm"></button>
+      <button class="theme-swatch theme-jade" data-theme="jade" title="Ngọc bích"></button>
+      <button class="theme-swatch theme-rosewood" data-theme="rosewood" title="Gỗ hồng mộc"></button>
+      <button class="theme-swatch theme-marble" data-theme="marble" title="Đá cẩm thạch"></button>
+      <button class="theme-swatch theme-royal" data-theme="royal" title="Hoàng gia"></button>
+      <button class="theme-swatch theme-midnight" data-theme="midnight" title="Đêm xanh"></button>
+      <button class="theme-swatch theme-sakura" data-theme="sakura" title="Hoa anh đào"></button>
+      <button class="theme-swatch theme-obsidian" data-theme="obsidian" title="Hắc diệu thạch"></button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <h4>QUÂN ĐÃ ĂN</h4>
     <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Quân Đỏ đã mất</div>
     <div class="captured-row" id="capturedRed"></div>
     <div class="sub" style="font-size:12.5px; margin:14px 0 8px 0;">Quân Đen đã mất</div>
@@ -74,15 +96,14 @@
   </div>
 
   <div class="drawer-section">
-    <h4>Lịch Sử Nước Đi</h4>
+    <h4>LỊCH SỬ NƯỚC ĐI</h4>
     <div class="history-box" id="historyBox"></div>
   </div>
 
   <div class="drawer-section">
-    <h4>Chơi Cùng Bạn Bè</h4>
+    <h4>CHƠI CÙNG BẠN BÈ</h4>
     <div id="onlineIdle">
       <div class="remote-tab-block">
-        <h4 style="font-size:13px; margin-bottom:6px;">Chơi Trực Tuyến</h4>
         <div class="action-row">
           <button class="action-btn" id="fbCreateRoomBtn">Tạo phòng</button>
         </div>
@@ -90,6 +111,7 @@
           <input type="text" id="fbJoinCodeInput" placeholder="Nhập mã phòng" maxlength="6">
           <button class="action-btn" id="fbJoinRoomBtn">Vào phòng</button>
         </div>
+        <button class="action-btn" id="fbSpectateBtn" style="width:100%; margin-top:6px;">Chỉ xem (không đi được)</button>
         <div class="online-status" id="fbStatus"></div>
       </div>
     </div>
@@ -103,7 +125,18 @@
         <div class="room-code" id="roomCodeDisplay">Đỏ</div>
       </div>
       <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
-      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">Kết thúc ván</button>
+
+      <button class="action-btn" id="requestUndoBtn" style="width:100%; margin-top:4px;">Xin Đi Lại</button>
+
+      <div class="chat-box" id="chatBox">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="join-row" style="margin-top:8px;">
+          <input type="text" id="chatInput" placeholder="Nhắn gì đó..." maxlength="200">
+          <button class="action-btn" id="chatSendBtn">Gửi</button>
+        </div>
+      </div>
+
+      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;">KẾT THÚC VÁN</button>
     </div>
     <div class="online-status" id="onlineStatus"></div>
   </div>
@@ -135,11 +168,39 @@
 
 <div class="footer-note">Chạm để chọn quân, ô xanh ngọc là nước đi hợp lệ. Tướng đối mặt trực diện (không quân chắn) là nước cấm - luật "lộ mặt tướng" được áp dụng đầy đủ.</div>
 
+<canvas id="confettiCanvas"></canvas>
+
+<div class="replay-bar" id="replayBar" style="display:none;">
+  <div class="replay-move-label" id="replayMoveLabel">Nước 0 / 0</div>
+  <div class="replay-controls">
+    <button class="replay-btn" id="replayStartBtn" title="Về đầu">⏮</button>
+    <button class="replay-btn" id="replayPrevBtn" title="Lùi 1 nước">◀</button>
+    <button class="replay-btn" id="replayPlayBtn" title="Phát">▶</button>
+    <button class="replay-btn" id="replayNextBtn" title="Tiến 1 nước">▶</button>
+    <button class="replay-btn" id="replayEndBtn" title="Đến cuối">⏭</button>
+    <button class="replay-btn replay-close" id="replayCloseBtn" title="Đóng">✕</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box">
     <h2 id="modalTitle">Chiếu Bí!</h2>
     <p id="modalText">Đỏ đã thắng ván cờ.</p>
-    <button id="modalBtn">Chơi Lại</button>
+    <div class="modal-btn-row">
+      <button id="modalBtn">Chơi Lại</button>
+      <button id="modalReplayBtn" class="modal-btn-secondary">Xem Lại Ván</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="undoModalOverlay">
+  <div class="modal-box">
+    <h2>Xin Đi Lại</h2>
+    <p id="undoModalText">Đối thủ xin đi lại nước vừa rồi.</p>
+    <div class="modal-btn-row">
+      <button id="undoModalAcceptBtn">ĐỒNG Ý</button>
+      <button id="undoModalDeclineBtn" class="modal-btn-secondary">TỪ CHỐI</button>
+    </div>
   </div>
 </div>
 
