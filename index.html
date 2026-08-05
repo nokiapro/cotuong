@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 </head>
 <body>
 
@@ -57,9 +58,9 @@
 
     <div class="join-row" style="margin-top:6px;">
       <input type="text" id="saveCodeInput" placeholder="Mã ván đấu" maxlength="5">
-      <button class="action-btn" id="loadBtn">Tải</button>
+      <button class="action-btn" id="loadBtn">Tải ván</button>
     </div>
-    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;">Lưu ván đấu mới</button>
+    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;">Lưu ván đấu</button>
     <div class="online-status" id="saveStatus"></div>
 
     <div class="status-msg" id="statusMsg"></div>
@@ -74,7 +75,7 @@
         <span class="switch-slider"></span>
       </label>
     </div>
-    <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Giao diện bàn cờ</div>
+    <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">GIAO DIỆN BÀN CỜ</div>
     <div class="theme-row" id="themeRow">
       <button class="theme-swatch theme-wood active" data-theme="wood" title="Gỗ trầm"></button>
       <button class="theme-swatch theme-jade" data-theme="jade" title="Ngọc bích"></button>
@@ -126,6 +127,15 @@
       </div>
       <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
 
+      <button class="action-btn" id="shareRoomBtn" style="width:100%; margin-bottom:6px;">Chia Sẻ Phòng (Link/QR)</button>
+      <div id="shareRoomBox" style="display:none; margin-bottom:8px;">
+        <div class="join-row">
+          <input type="text" id="shareLinkInput" readonly>
+          <button class="action-btn" id="copyShareLinkBtn">Copy</button>
+        </div>
+        <div id="qrCodeBox" class="qr-code-box"></div>
+      </div>
+
       <button class="action-btn" id="requestUndoBtn" style="width:100%; margin-top:4px;">Xin Đi Lại</button>
 
       <div class="chat-box" id="chatBox">
@@ -142,7 +152,7 @@
   </div>
 
   <div class="drawer-section" id="cheatPanel" style="display:none;">
-    <h4>Chế Độ Gian Lận</h4>
+    <h4>CHẾ ĐỘ GIAN LẬN</h4>
     <div class="sub" style="font-size:13px; margin:0 0 10px 0;">Chỉ dùng khi đấu máy - các nút này bẻ luật để bạn luôn thắng.</div>
 
     <button class="action-btn" id="skipAiBtn" style="width:100%; margin-bottom:8px;">Đổi Lượt Ngay</button>
@@ -187,19 +197,31 @@
     <h2 id="modalTitle">Chiếu Bí!</h2>
     <p id="modalText">Đỏ đã thắng ván cờ.</p>
     <div class="modal-btn-row">
-      <button id="modalBtn">Chơi Lại</button>
-      <button id="modalReplayBtn" class="modal-btn-secondary">Xem Lại Ván</button>
+      <button id="modalBtn">CHƠI LẠI</button>
+      <button id="modalReplayBtn" class="modal-btn-secondary">XEM LẠI VÁN</button>
+      <button id="modalRematchBtn" class="modal-btn-secondary" style="display:none;">Tái Đấu</button>
     </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="undoModalOverlay">
   <div class="modal-box">
-    <h2>Xin Đi Lại</h2>
+    <h2>XIN ĐI LẠI</h2>
     <p id="undoModalText">Đối thủ xin đi lại nước vừa rồi.</p>
     <div class="modal-btn-row">
       <button id="undoModalAcceptBtn">ĐỒNG Ý</button>
       <button id="undoModalDeclineBtn" class="modal-btn-secondary">TỪ CHỐI</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="roomInviteModalOverlay">
+  <div class="modal-box">
+    <h2>LỜI MỜI CHƠI CỜ</h2>
+    <p>Đối thủ mời vào bạn vào phòng đấu <strong id="roomInviteCode">XXXXX</strong>.</p>
+    <div class="modal-btn-row">
+      <button id="roomInviteJoinBtn">VÀO PHÒNG</button>
+      <button id="roomInviteSpectateBtn" class="modal-btn-secondary">CHỈ XEM</button>
     </div>
   </div>
 </div>
