@@ -489,6 +489,19 @@
     padding:14px;
     text-align:center;
   }
+  .qr-code-box{
+    display:flex;
+    justify-content:center;
+    margin-top:10px;
+    padding:10px;
+    background:#fff;
+    border-radius:10px;
+  }
+  .qr-code-box img, .qr-code-box svg{
+    width:150px;
+    height:150px;
+    display:block;
+  }
   .room-code-label{
     font-size:11px;
     letter-spacing:0.15em;
