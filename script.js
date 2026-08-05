@@ -627,6 +627,7 @@ function buildStaticBoard(){
   function drawPoint(r,c){
     const x = boardX(c), y = boardY(r);
     const offs = [[-8,-8,-4,-8,-8,-4],[8,-8,4,-8,8,-4],[-8,8,-4,8,-8,4],[8,8,4,8,8,4]];
+
     const ticks = [
       {dx1:-9,dy1:-9,dx2:-4,dy2:-9},{dx1:-9,dy1:-9,dx2:-9,dy2:-4},
       {dx1:9,dy1:-9,dx2:4,dy2:-9},{dx1:9,dy1:-9,dx2:9,dy2:-4},
@@ -962,6 +963,8 @@ function clearOnlineChatIfActive(){
 function showGameOver(title, text){
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalText').textContent = text;
+  document.getElementById('modalRematchBtn').style.display =
+    (state.online.active && !state.online.spectator) ? '' : 'none';
   document.getElementById('modalOverlay').classList.add('show');
 }
 
@@ -1098,7 +1101,7 @@ async function saveGame(){
     await fb.db.ref('saves/'+code).set({ content, savedAt: Date.now() });
     document.getElementById('saveCodeInput').value = code;
     state.currentSave = code;
-    flashStatus(`Đã lưu! Mã ván đấu: ${code} — ghi lại để tải lại sau.`, false, 'saveStatus');
+    flashStatus(`Đã lưu! Mã ván đấu: ${code} - ghi lại để tải lại sau.`, false, 'saveStatus');
   }catch(err){
     flashStatus('Lưu thất bại.', true, 'saveStatus');
   }
@@ -1191,7 +1194,7 @@ function showOnlineActive(){
   document.getElementById('requestUndoBtn').style.display = state.online.spectator ? 'none' : '';
 
   if(state.online.spectator){
-    document.getElementById('roomCodeDisplay').textContent = 'Xem';
+    document.getElementById('roomCodeDisplay').textContent = 'XEM';
     const base = 'Đang xem trực tiếp - bạn không thể đi quân.';
     document.getElementById('onlineRoleLabel').textContent =
       state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
@@ -1204,6 +1207,54 @@ function showOnlineActive(){
     : 'Đang chờ đối thủ đi (thời gian thực).';
   document.getElementById('onlineRoleLabel').textContent =
     state.online.roomCode ? `${base} · Mã phòng: ${state.online.roomCode}` : base;
+}
+
+function buildRoomShareUrl(code){
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('room', code);
+  return url.toString();
+}
+
+function toggleShareRoomBox(){
+  const box = document.getElementById('shareRoomBox');
+  const isOpen = box.style.display !== 'none';
+  if(isOpen){ box.style.display = 'none'; return; }
+  if(!state.online.roomCode) return;
+
+  const url = buildRoomShareUrl(state.online.roomCode);
+  document.getElementById('shareLinkInput').value = url;
+
+  const qrBox = document.getElementById('qrCodeBox');
+  qrBox.innerHTML = '';
+  try{
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    qrBox.innerHTML = qr.createImgTag(4, 4);
+  }catch(err){
+    qrBox.textContent = 'Không tạo được mã QR.';
+  }
+  box.style.display = '';
+}
+
+function copyShareLink(){
+  const input = document.getElementById('shareLinkInput');
+  input.select();
+  navigator.clipboard?.writeText(input.value)
+    .then(()=>flashStatus('Đã sao chép link phòng.', false))
+    .catch(()=>flashStatus('Không sao chép được, hãy tự bôi đen và copy.', true));
+}
+
+function checkRoomLinkParam(){
+  const code = new URLSearchParams(location.search).get('room');
+  if(!code) return;
+  const upperCode = code.toUpperCase();
+  document.getElementById('fbJoinCodeInput').value = upperCode;
+  document.getElementById('roomInviteCode').textContent = upperCode;
+  document.getElementById('roomInviteModalOverlay').classList.add('show');
+  history.replaceState(null, '', location.pathname);
 }
 
 function randomRoomCode(len=5){
@@ -1245,6 +1296,7 @@ async function fbCreateRoom(){
     return;
   }
   try{ fbInit(); }catch(err){ setFbStatus('Lỗi khởi tạo Firebase: '+err.message, true); return; }
+  fbSweepExpiredRooms();
 
   const code = randomRoomCode();
   startRemoteGame('red');
@@ -1258,7 +1310,8 @@ async function fbCreateRoom(){
     turn: state.turn,
     lastMoveJSON: 'null',
     version: 1,
-    gameOver: false
+    gameOver: false,
+    createdAt: Date.now()
   };
   try{
     await fb.roomRef.set(payload);
@@ -1269,7 +1322,8 @@ async function fbCreateRoom(){
   fbListen();
   fbListenUndoRequest();
   fbListenChat();
-  setFbStatus(`Đã tạo phòng ${code} - gửi mã này cho đối thủ.`, false);
+  fbSetupPresence('red');
+  setFbStatus(`Đã tạo phòng ${code} - gửi mã này cho đối thủ. Phòng tự xoá sau 7 ngày hoặc khi cả 2 cùng thoát.`, false);
   showOnlineActive();
 }
 
@@ -1287,11 +1341,12 @@ async function fbJoinRoom(){
   try{
     snap = await ref.once('value');
   }catch(err){
-    setFbStatus('Không đọc được phòng.', true);
+    setFbStatus('Không đọc được phòng - kiểm tra mã hoặc luật bảo mật Firebase.', true);
     return;
   }
   const data = snap.val();
   if(!data){ setFbStatus('Không tìm thấy phòng này.', true); return; }
+  if(fbRoomExpired(data)){ ref.remove(); setFbStatus('Phòng này đã trống quá 3 phút nên đã bị xoá.', true); return; }
 
   fb.room = code;
   fb.roomRef = ref;
@@ -1301,8 +1356,9 @@ async function fbJoinRoom(){
   fbListen();
   fbListenUndoRequest();
   fbListenChat();
+  fbSetupPresence('black');
   fbApplyState(data);
-  setFbStatus(`🟢 Đã vào phòng ${code}!`, false);
+  setFbStatus(`Đã vào phòng ${code}!`, false);
   showOnlineActive();
 }
 
@@ -1325,6 +1381,7 @@ async function fbSpectateRoom(){
   }
   const data = snap.val();
   if(!data){ setFbStatus('Không tìm thấy phòng này.', true); return; }
+  if(fbRoomExpired(data)){ ref.remove(); setFbStatus('Phòng này đã trống quá 3 phút nên đã bị xoá.', true); return; }
 
   fb.room = code;
   fb.roomRef = ref;
@@ -1339,12 +1396,51 @@ async function fbSpectateRoom(){
   showOnlineActive();
 }
 
+const ROOM_EMPTY_GRACE_MS = 3 * 60 * 1000;
+function fbRoomExpired(data){
+  return !!(data && data.emptyAt && (Date.now() - data.emptyAt > ROOM_EMPTY_GRACE_MS));
+}
+
+async function fbSweepExpiredRooms(){
+  try{
+    const snap = await fb.db.ref('rooms').once('value');
+    const rooms = snap.val();
+    if(!rooms) return;
+    for(const code in rooms){
+      if(fbRoomExpired(rooms[code])) fb.db.ref('rooms/'+code).remove();
+    }
+  }catch(err){  }
+}
+
+function fbSetupPresence(color){
+  if(!fb.roomRef || !color) return;
+  const presenceRef = fb.roomRef.child('presence/'+color);
+  presenceRef.set(true);
+  presenceRef.onDisconnect().set(false);
+}
+
+function fbListenPresence(){
+  if(!fb.roomRef) return;
+  fb.roomRef.child('presence').on('value', snap=>{
+    const p = snap.val() || {};
+    const empty = p.red !== true && p.black !== true;
+    if(empty){
+      fb.roomRef.child('emptyAt').once('value').then(s=>{
+        if(s.val()==null) fb.roomRef.child('emptyAt').set(Date.now());
+      });
+    } else {
+      fb.roomRef.child('emptyAt').remove();
+    }
+  });
+}
+
 function fbListen(){
   if(!fb.roomRef) return;
   fb.roomRef.on('value', snap=>{
     const data = snap.val();
     if(data) fbApplyState(data);
   });
+  fbListenPresence();
 }
 
 function fbStopListening(){
@@ -1373,6 +1469,10 @@ function fbApplyState(data){
     try{ board = JSON.parse(data.boardJSON); }catch(err){ return; }
     resetPieceLayer();
     state.board = board;
+    state.history = [];
+    document.getElementById('capturedRed').innerHTML = '';
+    document.getElementById('capturedBlack').innerHTML = '';
+    document.getElementById('historyBox').innerHTML = '';
   }
 
   state.turn = data.turn;
@@ -1380,11 +1480,12 @@ function fbApplyState(data){
   state.online.version = data.version;
   state.selected = null;
   state.legalTargets = [];
+  state.gameOver = !!data.gameOver;
+  if(!state.gameOver) document.getElementById('modalOverlay').classList.remove('show');
   renderPieces();
   renderMarkers();
   updateStatus();
   updateUndoBtn();
-  if(data.gameOver) state.gameOver = true;
   checkGameEnd();
   showOnlineActive();
 }
@@ -1400,6 +1501,31 @@ function fbPushState(){
     gameOver: state.gameOver
   };
   fb.roomRef.update(payload).catch(()=>setFbStatus('Gửi nước đi thất bại, kiểm tra mạng.', true));
+}
+
+function rematchOnline(){
+  if(!state.online.active || state.online.spectator || !fb.roomRef) return;
+  stopReplayIfActive();
+  document.getElementById('modalOverlay').classList.remove('show');
+  state.board = initialBoard();
+  state.turn = 'red';
+  state.selected = null;
+  state.legalTargets = [];
+  state.history = [];
+  state.gameOver = false;
+  state.lastMove = null;
+  state.currentSave = null;
+  document.getElementById('capturedRed').innerHTML = '';
+  document.getElementById('capturedBlack').innerHTML = '';
+  document.getElementById('historyBox').innerHTML = '';
+  resetPieceLayer();
+  renderPieces();
+  renderMarkers();
+  updateStatus();
+  updateUndoBtn();
+  fbPushState();
+  setFbStatus('Đã bắt đầu ván mới - đối thủ sẽ thấy ngay.', false);
+  showOnlineActive();
 }
 
 function requestUndo(){
@@ -1497,7 +1623,23 @@ function sendChat(){
 }
 
 function leaveRoom(){
-  if(fb.roomRef){ fb.roomRef.child('undoRequest').off(); fb.roomRef.child('chat').off(); }
+  if(fb.roomRef){
+    const roomRef = fb.roomRef;
+    const myColor = state.online.color;
+    if(myColor){
+      const presenceRef = roomRef.child('presence/'+myColor);
+      presenceRef.onDisconnect().cancel();
+      presenceRef.set(false).then(()=> roomRef.child('presence').once('value'))
+        .then(snap=>{
+          const p = snap.val() || {};
+          if(p.red !== true && p.black !== true) roomRef.child('emptyAt').set(Date.now());
+        })
+        .catch(()=>{  });
+    }
+    roomRef.child('presence').off();
+    roomRef.child('undoRequest').off();
+    roomRef.child('chat').off();
+  }
   fbStopListening();
   state.online.active = false;
   state.online.color = null;
@@ -1506,6 +1648,7 @@ function leaveRoom(){
   state.online.roomCode = null;
   document.getElementById('onlineIdle').style.display = '';
   document.getElementById('onlineActive').style.display = 'none';
+  document.getElementById('shareRoomBox').style.display = 'none';
   document.getElementById('fbJoinCodeInput').value = '';
   document.getElementById('undoModalOverlay').classList.remove('show');
   document.getElementById('chatMessages').innerHTML = '';
@@ -1563,7 +1706,7 @@ function updateStatus(){
   if(state.gameOver){ msg.textContent=''; msg.classList.remove('check'); updateTurnIndicator(); return; }
   const inCheck = isInCheck(state.board, state.turn);
   if(inCheck){
-    msg.textContent = `⚠ ${state.turn==='red'?'Đỏ':'Đen'} đang bị chiếu tướng!`;
+    msg.textContent = `${state.turn==='red'?'Đỏ':'Đen'} đang bị chiếu tướng!`;
     msg.classList.add('check');
   } else {
     msg.textContent = '';
@@ -1731,15 +1874,7 @@ function toggleReplayPlay(){
 }
 
 function exitReplay(){
-  stopReplayIfActive();
-  state.board = state.replay.savedBoard;
-  state.turn = state.replay.savedTurn;
-  state.selected = null;
-  state.legalTargets = [];
-  resetPieceLayer();
-  renderPieces();
-  renderMarkers();
-  updateStatus();
+  resetGame();
 }
 
 function resetGame(){
@@ -1801,6 +1936,8 @@ document.getElementById('leaveRoomBtn').addEventListener('click', leaveRoom);
 document.getElementById('fbCreateRoomBtn').addEventListener('click', fbCreateRoom);
 document.getElementById('fbJoinRoomBtn').addEventListener('click', fbJoinRoom);
 document.getElementById('fbSpectateBtn').addEventListener('click', fbSpectateRoom);
+document.getElementById('shareRoomBtn').addEventListener('click', toggleShareRoomBox);
+document.getElementById('copyShareLinkBtn').addEventListener('click', copyShareLink);
 document.getElementById('fbJoinCodeInput').addEventListener('keydown', (e)=>{
   if(e.key==='Enter') fbJoinRoom();
 });
@@ -1808,6 +1945,15 @@ document.getElementById('fbJoinCodeInput').addEventListener('keydown', (e)=>{
 document.getElementById('requestUndoBtn').addEventListener('click', requestUndo);
 document.getElementById('undoModalAcceptBtn').addEventListener('click', acceptOnlineUndo);
 document.getElementById('undoModalDeclineBtn').addEventListener('click', declineOnlineUndo);
+
+document.getElementById('roomInviteJoinBtn').addEventListener('click', ()=>{
+  document.getElementById('roomInviteModalOverlay').classList.remove('show');
+  fbJoinRoom();
+});
+document.getElementById('roomInviteSpectateBtn').addEventListener('click', ()=>{
+  document.getElementById('roomInviteModalOverlay').classList.remove('show');
+  fbSpectateRoom();
+});
 
 document.getElementById('chatSendBtn').addEventListener('click', sendChat);
 document.getElementById('chatInput').addEventListener('keydown', (e)=>{
@@ -1822,6 +1968,7 @@ document.querySelectorAll('.theme-swatch').forEach(btn=>{
 });
 
 document.getElementById('modalReplayBtn').addEventListener('click', enterReplay);
+document.getElementById('modalRematchBtn').addEventListener('click', rematchOnline);
 document.getElementById('replayStartBtn').addEventListener('click', ()=>goToReplayIndex(0));
 document.getElementById('replayPrevBtn').addEventListener('click', ()=>goToReplayIndex(state.replay.index-1));
 document.getElementById('replayNextBtn').addEventListener('click', ()=>goToReplayIndex(state.replay.index+1));
@@ -1879,6 +2026,13 @@ async function loadConfigAndInit(){
   renderMarkers();
   updateStatus();
   updateUndoBtn();
+  checkRoomLinkParam();
+
+  if(fbConfigured()){
+    setInterval(()=>{
+      try{ fbInit(); fbSweepExpiredRooms(); }catch(err){}
+    }, 60000);
+  }
 }
 
 loadConfigAndInit();
