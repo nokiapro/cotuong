@@ -1,0 +1,45 @@
+{
+  "board": {
+    "cols": 9,
+    "rows": 10,
+    "cell": 62,
+    "margin": 34,
+    "svgWidth": 558,
+    "svgHeight": 620
+  },
+  "initialSetup": {
+    "backRow": ["chariot", "horse", "elephant", "advisor", "general", "advisor", "elephant", "horse", "chariot"],
+    "cannons": [[2, 1], [2, 7], [7, 1], [7, 7]],
+    "soldierCols": [0, 2, 4, 6, 8],
+    "soldierRows": { "black": 3, "red": 6 }
+  },
+  "pieceValues": {
+    "general": 100000,
+    "advisor": 200,
+    "elephant": 200,
+    "horse": 450,
+    "chariot": 900,
+    "cannon": 480,
+    "soldier": 100
+  },
+  "soldierCrossedBonus": 90,
+  "glyphs": {
+    "red":   { "general": "帥", "advisor": "仕", "elephant": "相", "horse": "傌", "chariot": "俥", "cannon": "炮", "soldier": "兵" },
+    "black": { "general": "將", "advisor": "士", "elephant": "象", "horse": "馬", "chariot": "車", "cannon": "砲", "soldier": "卒" }
+  },
+  "firebase": {
+    "apiKey": "AIzaSyBW9AUXqdxr_2VTSMnvYCqzOwCYWD7eiVk",
+    "authDomain": "cotuong-f4fa1.firebaseapp.com",
+    "databaseURL": "https://cotuong-f4fa1-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "projectId": "cotuong-f4fa1",
+    "storageBucket": "cotuong-f4fa1.firebasestorage.app",
+    "messagingSenderId": "329595726499",
+    "appId": "1:329595726499:web:0ba1a51cf029ab9c4ead16"
+  },
+  "admin": {
+    "passwordHash": "f12bf52e9626871977f72d931114a2cdfbc6e3d7b760548c625b276dbee66155",
+    "maxFailedAttempts": 5,
+    "lockoutMinutes": 5,
+    "sessionMinutes": 30
+  }
+}
