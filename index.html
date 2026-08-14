@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" href="https://i.ibb.co/F4TYrk6s/LOGOCOTUONG.png" type="image/png" sizes="16x16">
+<title>Cờ Tướng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://kit-pro.fontawesome.com/releases/v7.3.1/css/pro.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css">
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">象 棋 · Chinese Chess</div>
+  <h1>CỜ <span>TƯỚNG</span></h1>
+  <div class="sub">BÀN GỖ TRẦM - QUÂN CỜ PHA LÊ</div>
+</div>
+
+<button class="menu-fab" id="menuFab" aria-label="Mở menu"><i class="fa-regular fa-bars"></i></button>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3>象棋 · MENU</h3>
+    <button class="drawer-close" id="drawerClose"><i class="fa-regular fa-xmark"></i></button>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-gamepad"></i> VÁN CỜ</h4>
+    <div class="turn-indicator" id="turnIndicator">
+      <div class="turn-dot red" id="turnDot"></div>
+      <div id="turnLabel">Lượt của Đỏ</div>
+    </div>
+
+    <div class="mode-group">
+      <button class="mode-btn active" data-mode="pvp"><i class="fa-regular fa-users"></i> Người vs Người</button>
+      <button class="mode-btn" data-mode="pve"><i class="fa-regular fa-robot"></i> Người vs Máy</button>
+    </div>
+
+    <div id="aiLevelBox" style="display:none;">
+      <div class="level-row">
+        <span class="sub" style="margin:0; font-size:12.5px;">Độ khó</span>
+        <span class="level-badge" id="aiLevelBadge">5 · Giỏi</span>
+      </div>
+      <input type="range" id="aiLevelSlider" class="level-slider" min="1" max="10" step="1" value="5">
+      <div class="level-scale"><span>1</span><span>10</span></div>
+      <div class="sub" style="font-size:12px;margin:10px 0 4px;">Thách máy · cược coin (0 = chỉ thưởng thắng)</div>
+      <div class="join-row">
+        <input type="number" id="aiBetStake" placeholder="Cược vs máy" min="0" value="0">
+        <span class="level-badge" id="aiBetHint" title="Thưởng thắng theo cấp">+8c</span>
+      </div>
+      <button type="button" class="action-btn" id="aiLockBetBtn" style="width:100%; margin-top:8px;"><i class="fa-regular fa-lock"></i> Khóa coin &amp; chơi</button>
+      <div class="online-status" id="aiBetStatus" style="margin-top:4px;"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="action-btn" id="undoBtn"><i class="fa-regular fa-rotate-left"></i> Đi lại</button>
+      <button class="action-btn" id="resetBtn"><i class="fa-regular fa-arrows-rotate"></i> Ván mới</button>
+    </div>
+
+    <div class="join-row" style="margin-top:6px;">
+      <input type="text" id="saveCodeInput" placeholder="Mã ván đấu" maxlength="5">
+      <button class="action-btn" id="loadBtn"><i class="fa-regular fa-fire"></i> Tải</button>
+    </div>
+    <button class="action-btn" id="saveBtn" style="width:100%; margin-top:6px;"><i class="fa-regular fa-fire"></i> Lưu ván đấu</button>
+    <div class="online-status" id="saveStatus"></div>
+
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-bell"></i> GIAO DIỆN &amp; ÂM THANH</h4>
+    <div class="cheat-toggle" style="margin-bottom:10px;">
+      <span><i class="fa-regular fa-volume-high"></i> Âm thanh</span>
+      <label class="switch">
+        <input type="checkbox" id="soundToggle" checked>
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="cheat-toggle" style="margin-bottom:10px;">
+      <span><i class="fa-regular fa-language"></i> Quân cờ Việt hóa</span>
+      <label class="switch">
+        <input type="checkbox" id="viGlyphToggle">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="sub" style="font-size:12.5px; margin:14px 0 8px 0;">Giao diện bàn cờ</div>
+    <div class="coin-bar" id="coinBar">
+      <span class="coin-balance"><i class="fa-regular fa-coins"></i> <b id="coinBalance">0</b> coin</span>
+      <button type="button" class="action-btn" id="checkInBtn"><i class="fa-regular fa-calendar-check"></i> Điểm danh (+15)</button>
+    </div>
+    <div class="join-row" style="margin:8px 0; gap:8px;">
+      <button type="button" class="action-btn" id="openShopBtn" style="flex:1;"><i class="fa-regular fa-bag-shopping"></i> Cửa hàng</button>
+      <button type="button" class="action-btn" id="openInvBtn" style="flex:1;"><i class="fa-regular fa-box-open"></i> Kho đồ</button>
+    </div>
+    <div class="online-status" id="checkInStatus" style="margin:6px 0 8px;"></div>
+    <div class="sub" style="font-size:12px;margin:0 0 8px;">Đăng nhập kỳ thủ để điểm danh, mua quà &amp; lưu kho. Giao diện chưa mua chỉ có trong Cửa hàng - menu chỉ hiện giao diện đã mở.</div>
+    <div class="theme-row" id="themeRow">
+      
+      <button class="theme-swatch theme-wood active" data-theme="wood" data-price="0" title="Gỗ trầm (Miễn phí)"></button>
+      <button class="theme-swatch theme-jade" data-theme="jade" data-price="0" title="Ngọc bích (Miễn phí)"></button>
+      <button class="theme-swatch theme-rosewood" data-theme="rosewood" data-price="0" title="Gỗ hồng mộc (Miễn phí)"></button>
+      <button class="theme-swatch theme-marble" data-theme="marble" data-price="0" title="Đá cẩm thạch (Miễn phí)"></button>
+    </div>
+  </div>
+
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-boxes-stacked"></i> QUÂN ĐÃ ĂN</h4>
+    <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Quân Đỏ đã mất</div>
+    <div class="captured-row" id="capturedRed"></div>
+    <div class="sub" style="font-size:12.5px; margin:14px 0 8px 0;">Quân Đen đã mất</div>
+    <div class="captured-row" id="capturedBlack"></div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-clock-rotate-left"></i> LỊCH SỬ NƯỚC ĐI</h4>
+    <div class="history-box" id="historyBox"></div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-chart-bar"></i> BÌNH CHỌN (POLL)</h4>
+    <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Khán giả bình chọn kỳ thủ thắng trước ván đấu.</div>
+    <div id="spectatorPollBox"><div class="admin-empty" style="padding:8px;">Chưa có poll đang mở.</div></div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-users"></i> CHƠI CÙNG BẠN BÈ</h4>
+    <div id="onlineIdle">
+      <div class="remote-tab-block">
+        <div class="action-row">
+          <button class="action-btn" id="fbCreateRoomBtn"><i class="fa-regular fa-plus"></i> Tạo phòng</button>
+        </div>
+        <div class="join-row">
+          <input type="text" id="fbJoinCodeInput" placeholder="Nhập mã phòng" maxlength="6">
+          <button class="action-btn" id="fbJoinRoomBtn"><i class="fa-regular fa-right-to-bracket"></i> Vào</button>
+        </div>
+        <button class="action-btn" id="fbSpectateBtn" style="width:100%; margin-top:6px;"><i class="fa-regular fa-eye"></i> Chỉ xem (không đi được)</button>
+        <div class="online-status" id="fbStatus"></div>
+      </div>
+    </div>
+
+    <div id="onlineActive" style="display:none;">
+      <div class="room-code-box">
+        <div class="room-code-label">
+          Bạn đang cầm quân
+          <span class="killmode-active-badge" id="onlineLiveBadge">TRỰC TIẾP</span>
+        </div>
+        <div class="room-code" id="roomCodeDisplay">Đỏ</div>
+      </div>
+      <div class="sub" id="onlineRoleLabel" style="font-size:13px; margin:8px 0;"></div>
+      <div id="spectatorViewBar" style="display:none; margin:8px 0;">
+        <div class="sub" style="font-size:12px;margin-bottom:6px;">Góc nhìn khán giả</div>
+        <div class="action-row">
+          <button type="button" class="action-btn spectator-view-btn active" data-view="both"><i class="fa-regular fa-table-columns"></i> Cả 2</button>
+          <button type="button" class="action-btn spectator-view-btn" data-view="red"><i class="fa-regular fa-circle" style="color:#c44;"></i> Đỏ</button>
+          <button type="button" class="action-btn spectator-view-btn" data-view="black"><i class="fa-regular fa-circle" style="color:#888;"></i> Đen</button>
+        </div>
+        <div class="sub" id="spectatorViewMeta" style="font-size:11px;margin-top:6px;"></div>
+      </div>
+
+      <button class="action-btn" id="shareRoomBtn" style="width:100%; margin-bottom:6px;"><i class="fa-regular fa-link"></i> Chia Sẻ Phòng (Link/QR)</button>
+
+      <button class="action-btn" id="requestUndoBtn" style="width:100%; margin-top:4px;"><i class="fa-regular fa-handshake"></i> Xin Đi Lại</button>
+
+      <button class="action-btn" id="leaveRoomBtn" style="width:100%; margin-top:8px;"><i class="fa-regular fa-right-from-bracket"></i> Kết thúc phiên</button>
+    </div>
+    <div class="online-status" id="onlineStatus"></div>
+  </div>
+
+  <div class="drawer-section" id="cheatPanel" style="display:none;">
+    <h4><i class="fa-regular fa-bolt"></i> CHẾ ĐỘ GIAN LẬN</h4>
+    <div class="sub" style="font-size:13px; margin:0 0 8px 0;">Chỉ dùng khi đấu máy - bẻ luật để thắng.</div>
+    <div class="join-row" style="margin-bottom:8px;">
+      <span class="level-badge" id="cheatUsesBadge" title="Lượt gian lận còn lại hôm nay">∞</span>
+      <button type="button" class="action-btn" id="cheatBuyUsesBtn" style="flex:1;"><i class="fa-regular fa-coins"></i> Mua +10 lượt</button>
+    </div>
+    <div class="online-status" id="cheatUsesStatus" style="margin-bottom:8px;"></div>
+
+    <button class="action-btn" id="skipAiBtn" style="width:100%; margin-bottom:8px;"><i class="fa-regular fa-forward-step"></i> Đổi Lượt Ngay</button>
+
+    <div class="cheat-toggle" id="killModeRow">
+      <span><i class="fa-regular fa-crosshairs"></i> Cực Tử (Click cờ để ăn địch)</span>
+      <label class="switch">
+        <input type="checkbox" id="killModeToggle">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <button class="action-btn cheat-danger" id="beheadBtn" style="width:100%; margin:8px 0;"><i class="fa-regular fa-skull"></i> Trảm Tướng</button>
+    <button class="action-btn cheat-danger" id="reviveChariotBtn" style="width:100%;"><i class="fa-regular fa-horse"></i> Hồi Sinh Xe Đỏ</button>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-id-card"></i> ĐĂNG NHẬP / ĐĂNG KÝ</h4>
+    <div class="action-row" style="margin-bottom:10px;" id="authTabRow">
+      <button type="button" class="action-btn auth-tab-btn active" data-auth-tab="login" id="authTabLogin"><i class="fa-regular fa-right-to-bracket"></i> Đăng nhập</button>
+      <button type="button" class="action-btn auth-tab-btn" data-auth-tab="register" id="authTabRegister"><i class="fa-regular fa-user-plus"></i> Đăng ký</button>
+    </div>
+    <div id="playerLoginIdle">
+      <div id="playerLoginForm">
+        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">Nhập <b>mã ID</b> (vd. XK0001) hoặc <b>email</b> + mật khẩu.</div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="text" id="playerLoginId" class="input-id-upper" placeholder="Mã ID hoặc email *" maxlength="80" autocomplete="username">
+        </div>
+        <div class="join-row">
+          <input type="password" id="playerLoginPwd" placeholder="Mật khẩu *" autocomplete="current-password">
+          <button class="action-btn" id="playerLoginBtn"><i class="fa-regular fa-right-to-bracket"></i> Vào</button>
+        </div>
+        <input type="hidden" id="playerLoginTnCode" value="">
+      </div>
+      <div id="playerRegisterForm" style="display:none;">
+        <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">ID tự cấp <b>XK0001, XK0002…</b> · Người đầu là Superadmin.</div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="text" id="regName" placeholder="Họ và tên *" maxlength="40" autocomplete="name">
+        </div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="email" id="regEmail" placeholder="Email (tuỳ chọn, để đăng nhập bằng email)" maxlength="80" autocomplete="email">
+        </div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="text" id="regClub" placeholder="Hội / CLB cờ" maxlength="60">
+        </div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="date" id="regDob" title="Ngày sinh">
+        </div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="text" id="regHometown" placeholder="Quê quán" maxlength="80">
+        </div>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="password" id="regPwd" placeholder="Mật khẩu * (tối thiểu 6 ký tự)" minlength="6" autocomplete="new-password">
+        </div>
+        <div class="join-row">
+          <input type="password" id="regPwd2" placeholder="Nhập lại mật khẩu *" minlength="6" autocomplete="new-password">
+          <button class="action-btn" id="playerRegisterBtn"><i class="fa-regular fa-user-plus"></i> Đăng ký</button>
+        </div>
+      </div>
+      <div class="online-status" id="playerLoginStatus"></div>
+    </div>
+    <div id="playerLoginActive" style="display:none;">
+      <div class="room-code-box" style="margin-bottom:8px;">
+        <div class="room-code-label">Đã đăng nhập</div>
+        <div class="room-code" id="playerSessionName" style="font-size:18px;">—</div>
+        <div class="sub" id="playerSessionMeta" style="font-size:12px; margin-top:4px;"></div>
+      </div>
+      <div class="action-row">
+        <button class="action-btn" id="playerJoinMatchBtn" style="flex:1;"><i class="fa-regular fa-gamepad"></i> Vào bàn</button>
+        <button class="action-btn" id="playerWallBtn" style="flex:1;"><i class="fa-regular fa-id-card"></i> Wall</button>
+        <button class="action-btn" id="playerLogoutBtn" style="flex:1;"><i class="fa-regular fa-right-from-bracket"></i> Thoát</button>
+      </div>
+      <div class="online-status" id="playerSessionStatus"></div>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-ticket"></i> GIFTCODE &amp; CLAN</h4>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="text" id="giftCodeInput" placeholder="Nhập mã giftcode" maxlength="24" autocomplete="off">
+      <button type="button" class="action-btn" id="giftCodeRedeemBtn"><i class="fa-regular fa-gift"></i> Nhận</button>
+    </div>
+    <div class="online-status" id="giftCodeStatus"></div>
+    <div class="sub" style="font-size:12px;margin:10px 0 6px;">Clan</div>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="text" id="clanCreateName" placeholder="Tên clan mới" maxlength="24">
+      <button type="button" class="action-btn" id="clanCreateBtn"><i class="fa-regular fa-users"></i> Tạo</button>
+    </div>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="text" id="clanJoinCode" placeholder="Mã clan" maxlength="12">
+      <button type="button" class="action-btn" id="clanJoinBtn"><i class="fa-regular fa-right-to-bracket"></i> Vào</button>
+    </div>
+    <div class="action-row" style="margin-bottom:6px;">
+      <button type="button" class="action-btn" id="clanMineBtn" style="flex:1;width:100%;">
+        <i class="fa-solid fa-people-group"></i> Clan của tôi
+      </button>
+    </div>
+    <div class="online-status" id="clanStatus"></div>
+  </div>
+
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-trophy"></i> THÀNH TỰU</h4>
+    <div class="achievement-list" id="achievementList"><div class="admin-empty">Đăng nhập để xem.</div></div>
+  </div>
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-user-group"></i> BẠN BÈ &amp; CƯỢC COIN</h4>
+    <div class="sub" style="font-size:12.5px;margin:0 0 8px;">Kết bạn bằng mã kỳ thủ. Cược: thắng nhận gấp đôi, thua mất tiền cược.</div>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="text" id="friendAddCode" placeholder="Mã kỳ thủ kết bạn" maxlength="12">
+      <button type="button" class="action-btn" id="friendAddBtn"><i class="fa-regular fa-user-plus"></i> Kết bạn</button>
+    </div>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="number" id="betStakeInput" placeholder="Số coin cược" min="1" value="10">
+    </div>
+    <div class="join-row" style="margin-bottom:6px;">
+      <input type="text" id="betFriendCode" placeholder="Mã bạn để thách cược" maxlength="12">
+      <button type="button" class="action-btn" id="betChallengeBtn"><i class="fa-regular fa-coins"></i> Thách cược</button>
+    </div>
+    <div class="online-status" id="friendStatus"></div>
+    <div class="sub" style="font-size:12px;margin:8px 0 4px;">Lời mời kết bạn</div>
+    <div class="admin-list" id="friendReqList" style="max-height:120px;overflow:auto;"><div class="admin-empty">Không có.</div></div>
+    <div class="sub" style="font-size:12px;margin:8px 0 4px;">Danh sách bạn</div>
+    <div class="admin-list" id="friendList" style="max-height:140px;overflow:auto;"><div class="admin-empty">Chưa có bạn.</div></div>
+    <div class="sub" style="font-size:12px;margin:8px 0 4px;">Thách cược đến</div>
+    <div class="admin-list" id="betChallengeList" style="max-height:140px;overflow:auto;"><div class="admin-empty">Không có.</div></div>
+  </div>
+  <div class="drawer-section">
+    <h4><i class="fa-regular fa-shield-keyhole"></i> QUẢN TRỊ</h4>
+    <div id="adminLoginIdle">
+      <div class="sub" style="font-size:12.5px; margin:0 0 10px 0;">
+        Vào bằng <b>mật khẩu Admin website</b> hoặc tài khoản <b>Admin chính (superadmin)</b>: ID + mật khẩu của người đó.
+      </div>
+      <div class="join-row" style="margin-bottom:6px;">
+        <input type="text" id="adminLoginId" placeholder="ID Admin chính (tuỳ chọn nếu dùng MK site)" maxlength="12" autocomplete="username">
+      </div>
+      <div class="join-row">
+        <input type="password" id="adminPasswordInput" placeholder="Mật khẩu" autocomplete="current-password">
+        <button class="action-btn" id="adminLoginBtn"><i class="fa-regular fa-lock-open"></i> Vào</button>
+      </div>
+    </div>
+    <div id="adminLoginActive" style="display:none;">
+      <div class="room-code-box" style="margin-bottom:8px;">
+        <div class="room-code-label">Đã đăng nhập</div>
+        <div class="room-code" id="adminSessionTitle" style="font-size:18px;">Admin</div>
+        <div class="sub" id="adminSessionMeta" style="font-size:12px; margin-top:4px;"></div>
+      </div>
+      <div class="join-row" style="gap:8px;">
+        <button class="action-btn" id="adminOpenPanelBtn" style="flex:1;"><i class="fa-regular fa-gauge-high"></i> Vào panel</button>
+        <button class="action-btn" id="adminMenuLogoutBtn" style="flex:1;"><i class="fa-regular fa-right-from-bracket"></i> Thoát</button>
+      </div>
+    </div>
+    <div class="online-status" id="adminLoginStatus"></div>
+  </div>
+</div>
+
+
+<div class="float-chat" id="floatChat" style="display:none;" aria-live="polite">
+  <div class="float-chat-header" id="floatChatHeader">
+    <span><i class="fa-regular fa-comments"></i> Chat <b id="floatChatRoom">—</b></span>
+    <div class="float-chat-tools">
+      <span class="float-chat-unread" id="floatChatUnread" style="display:none;">0</span>
+      <button type="button" class="float-chat-min" id="floatChatMinBtn" title="Thu nhỏ">−</button>
+    </div>
+  </div>
+  <div class="float-chat-body" id="floatChatBody">
+    <div class="chat-messages" id="floatChatMessages"></div>
+    <div class="chat-ban-bar" id="chatBanBar" style="display:none;">
+      <input type="text" id="chatBanTarget" placeholder="Nick/ID cấm chat" maxlength="24">
+      <button type="button" class="action-btn cheat-danger" id="chatBanBtn" title="Cấm chat"><i class="fa-regular fa-ban"></i></button>
+      <button type="button" class="action-btn" id="chatUnbanBtn" title="Gỡ cấm"><i class="fa-regular fa-unlock"></i></button>
+    </div>
+    <div class="chat-mention-suggest" id="chatMentionSuggest" style="display:none;"></div>
+    <div class="float-chat-input">
+      <input type="text" id="floatChatInput" placeholder="Nhắn tin… dùng @nick để tag" maxlength="200" autocomplete="off">
+      <button type="button" class="action-btn" id="floatChatSendBtn"><i class="fa-regular fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="board-wrap" id="boardWrap">
+    <div class="board-emblem" id="boardEmblem" aria-hidden="true"></div>
+    <svg id="boardSvg" width="558" height="620" viewBox="0 0 558 620"></svg>
+  </div>
+</div>
+
+<div class="footer-note">Chạm để chọn quân, ô xanh ngọc là nước đi hợp lệ. Tướng đối mặt trực diện (không quân chắn) là nước cấm - luật "lộ mặt tướng" được áp dụng đầy đủ.</div>
+
+<canvas id="confettiCanvas"></canvas>
+
+<div class="replay-bar" id="replayBar" hidden>
+  <div class="replay-move-label" id="replayMoveLabel">Nước 0 / 0</div>
+  <div class="replay-controls">
+    <button type="button" class="replay-btn" id="replayStartBtn" title="Về đầu"><i class="fa-regular fa-backward-fast"></i></button>
+    <button type="button" class="replay-btn" id="replayPrevBtn" title="Lùi 1 nước"><i class="fa-regular fa-backward-step"></i></button>
+    <button type="button" class="replay-btn" id="replayPlayBtn" title="Phát"><i class="fa-regular fa-play"></i></button>
+    <button type="button" class="replay-btn" id="replayNextBtn" title="Tiến 1 nước"><i class="fa-regular fa-forward-step"></i></button>
+    <button type="button" class="replay-btn" id="replayEndBtn" title="Đến cuối"><i class="fa-regular fa-forward-fast"></i></button>
+  </div>
+  <button type="button" class="replay-exit-btn" id="replayCloseBtn">Thoát xem lại</button>
+</div>
+<script>
+(function(){
+  function hideBar(){
+    var bar = document.getElementById('replayBar');
+    if(!bar) return;
+    bar.classList.remove('is-open');
+    bar.hidden = true;
+    bar.setAttribute('hidden', '');
+    bar.style.setProperty('display', 'none', 'important');
+    bar.style.setProperty('visibility', 'hidden', 'important');
+    console.log('[replay] bar hidden');
+  }
+  function doExit(e){
+    if(e){ e.preventDefault(); e.stopPropagation(); }
+    console.log('[replay] close pressed');
+    hideBar();
+    try{
+      if(typeof window.exitReplay === 'function') window.exitReplay();
+      else {
+
+        var ov = document.getElementById('modalOverlay');
+        if(ov) ov.classList.remove('show');
+      }
+    }catch(err){ console.warn('[replay] exitReplay error', err); }
+  }
+  window.__hideReplayBar = hideBar;
+  window.__doReplayExit = doExit;
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('replayCloseBtn');
+    if(btn){
+      btn.addEventListener('click', doExit, true);
+      btn.addEventListener('mousedown', doExit, true);
+      btn.addEventListener('touchend', doExit, true);
+    }
+  });
+
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t) return;
+    if(t.id === 'replayCloseBtn' || (t.closest && t.closest('#replayCloseBtn'))){
+      doExit(e);
+    }
+  }, true);
+})();
+</script>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h2 id="modalTitle">Chiếu Bí!</h2>
+    <p id="modalText">Đỏ đã thắng ván cờ.</p>
+    <div class="modal-btn-row modal-btn-row-3">
+      <button id="modalBtn" type="button"><i class="fa-regular fa-arrows-rotate"></i> Chơi lại</button>
+      <button id="modalReplayBtn" class="modal-btn-secondary" type="button"><i class="fa-regular fa-clock-rotate-left"></i> Xem lại</button>
+      <button id="modalCancelBtn" class="modal-btn-secondary" type="button"><i class="fa-regular fa-xmark"></i> Hủy</button>
+      <button id="modalRematchBtn" class="modal-btn-secondary" style="display:none;" type="button"><i class="fa-regular fa-swords"></i> Tái đấu</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="undoModalOverlay">
+  <div class="modal-box">
+    <h2><i class="fa-regular fa-handshake"></i> Xin Đi Lại</h2>
+    <p id="undoModalText">Đối thủ xin đi lại nước vừa rồi.</p>
+    <div class="modal-btn-row">
+      <button id="undoModalAcceptBtn"><i class="fa-regular fa-check"></i> Đồng ý</button>
+      <button id="undoModalDeclineBtn" class="modal-btn-secondary"><i class="fa-regular fa-xmark"></i> Từ chối</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="roomInviteModalOverlay">
+  <div class="modal-box">
+    <h2><i class="fa-regular fa-chess-rook"></i> LỜI MỜI CHƠI CỜ</h2>
+    <p>Ai đó mời bạn vào phòng <strong id="roomInviteCode">XXXXX</strong>.</p>
+    <div class="modal-btn-row">
+      <button id="roomInviteJoinBtn"><i class="fa-regular fa-gamepad"></i> Vào Phòng Chơi</button>
+      <button id="roomInviteSpectateBtn" class="modal-btn-secondary"><i class="fa-regular fa-eye"></i> Chỉ Xem</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shareRoomModalOverlay">
+  <div class="modal-box">
+    <h2><i class="fa-regular fa-link"></i> Chia Sẻ Phòng</h2>
+    <div class="room-code-box" style="margin:0 0 14px 0;">
+      <div class="room-code-label">Mã phòng</div>
+      <div class="room-code" id="shareRoomCode">XXXXX</div>
+    </div>
+    <div class="join-row">
+      <input type="text" id="shareLinkInput" readonly>
+      <button class="action-btn" id="copyShareLinkBtn"><i class="fa-regular fa-copy"></i> Copy</button>
+    </div>
+    <div id="qrCodeBox" class="qr-code-box"></div>
+    <div class="modal-btn-row" style="margin-top:16px;">
+      <button id="shareRoomCloseBtn" class="modal-btn-secondary">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="admin-overlay" id="shopOverlay">
+  <div class="admin-panel admin-panel-wide shop-panel">
+    <div class="admin-header">
+      <div>
+        <h2><i class="fa-regular fa-bag-shopping"></i> CỬA HÀNG QUÀ ẢO</h2>
+        <div class="admin-sub">1000 quà ảo · phân trang · mua bằng coin · Số dư: <b id="shopCoinBalance">0</b> coin</div>
+      </div>
+      <div class="admin-header-actions">
+        <button class="action-btn" id="shopToInvBtn"><i class="fa-regular fa-box-open"></i> Kho đồ</button>
+        <button class="admin-close-btn" id="shopCloseBtn" title="Đóng"><i class="fa-regular fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="admin-body shop-body-scroll" style="display:block;">
+      <div class="shop-tabs" id="shopTabs">
+        <button type="button" class="shop-tab active" data-shop-tab="all">Tất cả</button>
+        <button type="button" class="shop-tab" data-shop-tab="theme">Giao diện</button>
+        <button type="button" class="shop-tab" data-shop-tab="vip">VIP</button>
+        <button type="button" class="shop-tab" data-shop-tab="plush">Gấu bông</button>
+        <button type="button" class="shop-tab" data-shop-tab="flower">Hoa</button>
+        <button type="button" class="shop-tab" data-shop-tab="pet">Thú cưng</button>
+        <button type="button" class="shop-tab" data-shop-tab="food">Đồ ngọt</button>
+        <button type="button" class="shop-tab" data-shop-tab="special">Đặc biệt</button>
+        <button type="button" class="shop-tab" data-shop-tab="auction">Đấu giá</button>
+      </div>
+      <div id="shopList" class="shop-scroll"></div>
+      <div class="online-status" id="shopStatus" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="admin-overlay" id="invOverlay">
+  <div class="admin-panel admin-panel-wide shop-panel">
+    <div class="admin-header">
+      <div>
+        <h2><i class="fa-regular fa-box-open"></i> Kho đồ</h2>
+        <div class="admin-sub">Quà đã mua · Có thể tặng kỳ thủ khác</div>
+      </div>
+      <div class="admin-header-actions">
+        <button class="action-btn" id="invToShopBtn"><i class="fa-regular fa-bag-shopping"></i> Cửa hàng</button>
+        <button class="admin-close-btn" id="invCloseBtn" title="Đóng"><i class="fa-regular fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="admin-body shop-body-scroll" style="display:block;">
+      <div class="admin-card" style="margin-bottom:12px;">
+        <h4 style="margin-top:0;">Nhận quà bằng mã (đã mã hóa)</h4>
+        <div class="join-row">
+          <input type="text" id="giftRedeemCode" placeholder="Dán mã quà (VD: XK-… hoặc mã cũ)" maxlength="24" autocomplete="off">
+          <button type="button" class="action-btn" id="giftRedeemBtn"><i class="fa-regular fa-box-open"></i> Nhận</button>
+        </div>
+        <div class="sub" style="font-size:12px;margin-top:6px;">Người tặng bấm «Mã» trong kho → gửi mã cho bạn.</div>
+      </div>
+      <div class="shop-tabs" id="invTabs">
+        <button type="button" class="shop-tab active" data-inv-tab="all">Tất cả</button>
+        <button type="button" class="shop-tab" data-inv-tab="theme">Giao diện</button>
+        <button type="button" class="shop-tab" data-inv-tab="plush">Gấu bông</button>
+        <button type="button" class="shop-tab" data-inv-tab="flower">Hoa</button>
+        <button type="button" class="shop-tab" data-inv-tab="pet">Thú cưng</button>
+        <button type="button" class="shop-tab" data-inv-tab="food">Đồ ngọt</button>
+        <button type="button" class="shop-tab" data-inv-tab="special">Đặc biệt</button>
+      </div>
+      <div id="invList" class="shop-scroll"></div>
+      <div class="online-status" id="invStatus" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="coin-popup-overlay" id="coinPopupOverlay">
+  <div class="coin-popup" role="dialog" aria-modal="true">
+    <div class="coin-popup-icon" id="coinPopupIcon"><i class="fa-solid fa-coins"></i></div>
+    <h3 class="coin-popup-title" id="coinPopupTitle">Thông báo</h3>
+    <div class="coin-popup-body" id="coinPopupBody"></div>
+    <div class="coin-popup-actions" id="coinPopupActions">
+      <button type="button" class="action-btn" id="coinPopupCancel" style="display:none;">Hủy</button>
+      <button type="button" class="action-btn" id="coinPopupOk">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="wallModalOverlay">
+  <div class="modal-box wall-modal-box">
+    <h2><i class="fa-regular fa-id-card"></i> Wall kỳ thủ</h2>
+    <div class="wall-avatar-wrap">
+      <img id="wallAvatarImg" class="wall-avatar" src="" alt="Avatar" style="display:none;">
+      <div id="wallAvatarPlaceholder" class="wall-avatar-ph">👤</div>
+    </div>
+    <div class="wall-form">
+      <div class="admin-field"><label>Mã ID (không đổi)</label><input type="text" id="wallCode" readonly></div>
+      <div class="admin-field"><label>Tên kỳ thủ (không đổi)</label><input type="text" id="wallName" readonly></div>
+      <div class="admin-field"><label>Tuổi</label><input type="text" id="wallAge" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="VD: 25" data-no-stepper="1" autocomplete="off"></div>
+      <div class="admin-field"><label>Quê quán</label><input type="text" id="wallHometown" maxlength="80" placeholder="Quê quán"></div>
+      <div class="admin-field"><label>CLB cờ</label><input type="text" id="wallClub" maxlength="80" placeholder="CLB cờ"></div>
+      <div class="admin-field"><label>Ngày sinh</label><input type="date" id="wallDob"></div>
+      <div class="admin-field"><label>Avatar — link ảnh hoặc upload</label>
+        <div class="join-row" style="margin-bottom:6px;">
+          <input type="url" id="wallAvatarFile" maxlength="300" placeholder="https://… hoặc tên file GitHub">
+        </div>
+        <div class="join-row">
+          <input type="file" id="wallAvatarUpload" accept="image/*" style="font-size:11px;">
+          <button type="button" class="action-btn" id="wallAvatarUploadBtn"><i class="fa-regular fa-upload"></i> Upload</button>
+        </div>
+      </div>
+      <div class="admin-field"><label>Clan</label><input type="text" id="wallClan" readonly placeholder="Chưa có clan"></div>
+    </div>
+    <div class="modal-btn-row">
+      <button type="button" class="action-btn" id="wallSaveBtn"><i class="fa-solid fa-check"></i> Lưu</button>
+      <button type="button" class="action-btn modal-btn-secondary" id="wallCloseBtn"><i class="fa-regular fa-xmark"></i> Đóng</button>
+    </div>
+    <div class="online-status" id="wallStatus" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="spectatorChoiceOverlay">
+  <div class="modal-box">
+    <h2><i class="fa-regular fa-eye"></i> Chọn góc nhìn</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">Xem bàn theo theme từng kỳ thủ hoặc màn hình chung.</p>
+    <div class="spectator-choice-grid">
+      <button type="button" class="spectator-choice-card" data-view="both" id="specChoiceBoth">
+        <span class="spec-choice-icon">♟️♟️</span>
+        <b>Màn cả 2</b>
+        <span class="spec-choice-desc">Theme mặc định chung</span>
+      </button>
+      <button type="button" class="spectator-choice-card" data-view="red" id="specChoiceRed">
+        <span class="spec-choice-icon" style="color:#c44;">🔴</span>
+        <b id="specChoiceRedName">Kỳ thủ Đỏ</b>
+        <span class="spec-choice-desc" id="specChoiceRedMeta">Theme của Đỏ</span>
+      </button>
+      <button type="button" class="spectator-choice-card" data-view="black" id="specChoiceBlack">
+        <span class="spec-choice-icon">⚫</span>
+        <b id="specChoiceBlackName">Kỳ thủ Đen</b>
+        <span class="spec-choice-desc" id="specChoiceBlackMeta">Theme của Đen</span>
+      </button>
+    </div>
+    <div class="modal-btn-row" style="margin-top:14px;">
+      <button type="button" class="action-btn modal-btn-secondary" id="specChoiceCancel"><i class="fa-regular fa-xmark"></i> Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel admin-panel-wide">
+    <div class="admin-header">
+      <div>
+        <h2><i class="fa-regular fa-shield-keyhole"></i> TRUNG TÂM ĐIỀU HÀNH GIẢI ĐẤU</h2>
+        <div class="admin-sub">Cờ Tướng · Tournament Control Center</div>
+      </div>
+      <div class="admin-header-actions">
+        <button class="action-btn" id="adminLogoutBtn" title="Đăng xuất"><i class="fa-regular fa-right-from-bracket"></i> Đăng xuất</button>
+        <button class="admin-close-btn" id="adminCloseBtn" title="Đóng"><i class="fa-regular fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div class="admin-body">
+
+      <nav class="admin-nav" id="adminNav">
+        <button class="admin-nav-btn active" data-section="dashboard"><i class="fa-regular fa-gauge-high"></i> Tổng quan</button>
+        <button class="admin-nav-btn" data-section="tournament"><i class="fa-regular fa-trophy"></i> Giải đấu</button>
+        <button class="admin-nav-btn" data-section="players"><i class="fa-regular fa-users"></i> Kỳ thủ</button>
+        <button class="admin-nav-btn" data-section="bracket"><i class="fa-regular fa-sitemap"></i> Nhánh &amp; Bàn</button>
+        <button class="admin-nav-btn" data-section="referee"><i class="fa-regular fa-whistle"></i> Trọng tài</button>
+        <button class="admin-nav-btn" data-section="format"><i class="fa-regular fa-table-cells"></i> Thể thức &amp; Bảng</button>
+        <button class="admin-nav-btn" data-section="live"><i class="fa-regular fa-tower-broadcast"></i> Giám sát Live</button>
+        <button class="admin-nav-btn" data-section="broadcast"><i class="fa-regular fa-tv"></i> Truyền thông</button>
+        <button class="admin-nav-btn" data-section="roles"><i class="fa-regular fa-user-shield"></i> Vai trò</button>
+        <button class="admin-nav-btn" data-section="chats"><i class="fa-regular fa-comments"></i> Chat</button>
+        <button class="admin-nav-btn" data-section="coins"><i class="fa-regular fa-coins"></i> Coin</button>
+        <button class="admin-nav-btn" data-section="giftcodes"><i class="fa-regular fa-ticket"></i> Giftcode</button>
+        <button class="admin-nav-btn" data-section="clans"><i class="fa-regular fa-people-group"></i> Clan</button>
+        <button class="admin-nav-btn" data-section="system"><i class="fa-regular fa-gear"></i> Hệ thống</button>
+      </nav>
+
+      <div class="admin-content">
+        <div class="admin-status" id="adminStatus"></div>
+
+        <div class="admin-section active" id="adminSec-dashboard">
+          <h3 class="admin-sec-title">Tổng quan hệ thống</h3>
+          <div class="admin-stats" id="adminStats">
+            <div class="admin-stat-card"><div class="admin-stat-value" id="adminRoomCount">—</div><div class="admin-stat-label">Phòng online</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="adminActiveCount">—</div><div class="admin-stat-label">Đang chơi</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="statTournamentCount">0</div><div class="admin-stat-label">Giải đấu</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="statPlayerCount">0</div><div class="admin-stat-label">Kỳ thủ</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="statMatchCount">0</div><div class="admin-stat-label">Trận đấu</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="adminSaveCount">—</div><div class="admin-stat-label">Ván lưu</div></div>
+          </div>
+          <div class="admin-toolbar">
+            <button class="action-btn" id="adminRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới toàn bộ</button>
+            <button class="action-btn" id="adminSweepBtn"><i class="fa-regular fa-broom"></i> Xóa phòng hết hạn</button>
+          </div>
+          <div class="admin-card">
+            <h4>Phòng online hiện tại</h4>
+            <div class="admin-list" id="adminRoomsList"><div class="admin-empty">Đang tải…</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-tournament">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-trophy"></i> Thiết lập &amp; Quản lý Giải đấu</h3>
+          <div class="admin-card">
+            <h4>Tạo giải đấu mới</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Tên giải đấu</label>
+                <input type="text" id="tourName" placeholder="VD: Giải Cờ Tướng Hạ Long 2026">
+              </div>
+              <div class="admin-field">
+                <label>Mã giải (tự sinh nếu trống)</label>
+                <input type="text" id="tourCode" placeholder="HL2026" maxlength="12">
+              </div>
+              <div class="admin-field">
+                <label>Ngày bắt đầu</label>
+                <input type="date" id="tourStart">
+              </div>
+              <div class="admin-field">
+                <label>Ngày kết thúc</label>
+                <input type="date" id="tourEnd">
+              </div>
+              <div class="admin-field">
+                <label>Thể thức</label>
+                <select id="tourFormat">
+                  <option value="single_elim">Loại trực tiếp (Single Elimination)</option>
+                  <option value="double_elim">Loại kép (Double Elimination)</option>
+                  <option value="round_robin">Vòng tròn (Round Robin)</option>
+                  <option value="swiss">Thụy Sĩ (Swiss)</option>
+                  <option value="group_knockout">Chia bảng + Knockout</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Số kỳ thủ tối đa</label>
+                <input type="number" id="tourMaxPlayers" min="2" max="256" value="32">
+              </div>
+              <div class="admin-field">
+                <label>Thời gian nghĩ (phút/bên)</label>
+                <input type="number" id="tourTimeControl" min="1" max="180" value="15">
+              </div>
+              <div class="admin-field">
+                <label>Trạng thái</label>
+                <select id="tourStatus">
+                  <option value="draft">Nháp</option>
+                  <option value="registration">Đang đăng ký</option>
+                  <option value="ongoing">Đang diễn ra</option>
+                  <option value="finished">Kết thúc</option>
+                </select>
+              </div>
+            </div>
+            <div class="admin-field" style="margin-top:8px;">
+              <label>Mô tả / Ghi chú</label>
+              <textarea id="tourDesc" rows="2" placeholder="Thông tin giải, địa điểm, ban tổ chức…"></textarea>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="tourCreateBtn"><i class="fa-regular fa-plus"></i> Tạo giải đấu</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Danh sách giải đấu</h4>
+            <div class="admin-list" id="tourList"><div class="admin-empty">Chưa có giải đấu nào.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-players">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-users"></i> Tạo &amp; Cấp Tài khoản Kỳ thủ</h3>
+          <div class="admin-card">
+            <h4>Thêm kỳ thủ</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Họ và tên</label>
+                <input type="text" id="playerName" placeholder="Nguyễn Văn A">
+              </div>
+              <div class="admin-field">
+                <label>Biệt danh / Nick</label>
+                <input type="text" id="playerNick" placeholder="VanA">
+              </div>
+              <div class="admin-field">
+                <label>Mã kỳ thủ (tự sinh nếu trống)</label>
+                <input type="text" id="playerCode" placeholder="P001" maxlength="10">
+              </div>
+              <div class="admin-field">
+                <label>Hạng / Elo ước tính</label>
+                <input type="number" id="playerElo" min="0" max="3000" value="1500">
+              </div>
+              <div class="admin-field">
+                <label>CLB / Đơn vị</label>
+                <input type="text" id="playerClub" placeholder="CLB Cờ Hạ Long">
+              </div>
+              <div class="admin-field">
+                <label>Gắn vào giải</label>
+                <select id="playerTournament"><option value="">— Chưa gắn —</option></select>
+              </div>
+              <div class="admin-field">
+                <label>Chức vụ / Vai trò</label>
+                <select id="playerRole">
+                  <option value="player">Tuyển thủ (player)</option>
+                  <option value="vip">VIP</option>
+                  <option value="mod">Mod / Điều phối</option>
+                  <option value="caster">Bình luận viên (caster)</option>
+                  <option value="admin">Admin phụ</option>
+                  <option value="superadmin">Admin chính (superadmin)</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Mật khẩu (trống = tự sinh)</label>
+                <input type="text" id="playerPassword" placeholder="Để trống sẽ tự tạo" autocomplete="off">
+              </div>
+            </div>
+            <input type="hidden" id="playerEditId" value="">
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="playerCreateBtn"><i class="fa-regular fa-user-plus"></i> Tạo kỳ thủ</button>
+              <button class="action-btn" id="playerUpdateBtn" style="display:none;"><i class="fa-regular fa-pen"></i> Lưu chỉnh sửa</button>
+              <button class="action-btn" id="playerCancelEditBtn" style="display:none;">Hủy sửa</button>
+              <button class="action-btn" id="playerGenAccountsBtn"><i class="fa-regular fa-wand-magic-sparkles"></i> Sinh hàng loạt</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Danh sách kỳ thủ <span class="admin-badge" id="playerCountBadge">0</span></h4>
+            <div class="admin-list" id="playerList"><div class="admin-empty">Chưa có kỳ thủ.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-bracket">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-sitemap"></i> Quản lý Nhánh đấu &amp; Bàn thi đấu</h3>
+          <div class="admin-card">
+            <h4>Chọn giải &amp; tạo nhánh</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Giải đấu</label>
+                <select id="bracketTournament"></select>
+              </div>
+              <div class="admin-field">
+                <label>Số bàn thi đấu</label>
+                <input type="number" id="bracketTables" min="1" max="64" value="8">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="bracketGenerateBtn"><i class="fa-regular fa-diagram-project"></i> Sinh nhánh tự động</button>
+              <button class="action-btn" id="bracketClearBtn"><i class="fa-regular fa-eraser"></i> Xóa nhánh</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Nhánh đấu / Trận</h4>
+            <div class="admin-list" id="bracketList"><div class="admin-empty">Chọn giải và sinh nhánh.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Gán phòng Firebase cho trận</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã trận</label>
+                <input type="text" id="matchAssignId" placeholder="M001">
+              </div>
+              <div class="admin-field">
+                <label>Mã phòng Firebase</label>
+                <input type="text" id="matchRoomCode" placeholder="ABC12" maxlength="6">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="matchAssignBtn"><i class="fa-regular fa-link"></i> Gán phòng</button>
+              <button class="action-btn" id="matchCreateRoomBtn"><i class="fa-regular fa-plus"></i> Tạo phòng mới &amp; gán</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-referee">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-whistle"></i> Điều hành Trọng tài</h3>
+          <div class="admin-card">
+            <h4>Lệnh trọng tài nhanh</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã phòng / Mã trận</label>
+                <input type="text" id="refTarget" placeholder="ABC12 hoặc M001">
+              </div>
+              <div class="admin-field">
+                <label>Lý do / Ghi chú</label>
+                <input type="text" id="refNote" placeholder="Vi phạm thời gian, hòa thỏa thuận…">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px; flex-wrap:wrap;">
+              <button class="action-btn" id="refPauseBtn"><i class="fa-regular fa-pause"></i> Tạm dừng ván</button>
+              <button class="action-btn" id="refResumeBtn"><i class="fa-regular fa-play"></i> Tiếp tục</button>
+              <button class="action-btn" id="refForceDrawBtn"><i class="fa-regular fa-handshake"></i> Hòa bắt buộc</button>
+              <button class="action-btn cheat-danger" id="refRedWinBtn"><i class="fa-regular fa-flag"></i> Đỏ thắng (xử)</button>
+              <button class="action-btn cheat-danger" id="refBlackWinBtn"><i class="fa-regular fa-flag"></i> Đen thắng (xử)</button>
+              <button class="action-btn" id="refResetBoardBtn"><i class="fa-regular fa-arrows-rotate"></i> Reset bàn</button>
+              <button class="action-btn" id="refMessageBtn"><i class="fa-regular fa-message"></i> Gửi thông báo</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Nhật ký trọng tài</h4>
+            <div class="admin-list" id="refLogList"><div class="admin-empty">Chưa có lệnh nào.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-format">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-table-cells"></i> Quản lý Thể thức &amp; Chia bảng Đa dạng</h3>
+          <div class="admin-card">
+            <h4>Chia bảng + lịch Vòng tròn (Round-Robin)</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Giải đấu</label>
+                <select id="groupTournament"></select>
+              </div>
+              <div class="admin-field">
+                <label>Số bảng</label>
+                <input type="number" id="groupCount" min="1" max="16" value="4">
+              </div>
+              <div class="admin-field">
+                <label>Cách chia</label>
+                <select id="groupMethod">
+                  <option value="random">Ngẫu nhiên</option>
+                  <option value="elo">Theo Elo (snake seeding)</option>
+                  <option value="manual">Thủ công sau</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Điểm: Thắng / Hòa / Thua</label>
+                <input type="text" id="scoreScheme" value="3 / 1 / 0" placeholder="3 / 1 / 0">
+              </div>
+              <div class="admin-field">
+                <label>Lượt đi – Lượt về</label>
+                <select id="homeAway">
+                  <option value="false">1 lượt (chỉ đi)</option>
+                  <option value="true">2 lượt (đi + về, đổi màu)</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Số vòng Swiss (nếu dùng)</label>
+                <input type="number" id="swissRounds" min="1" max="15" value="5">
+              </div>
+              <div class="admin-field">
+                <label>Top vào knockout</label>
+                <input type="number" id="knockoutTop" min="2" max="64" value="8">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="groupGenerateBtn"><i class="fa-regular fa-shuffle"></i> Chia bảng</button>
+              <button class="action-btn" id="rrScheduleBtn"><i class="fa-regular fa-calendar"></i> Sinh lịch Round-Robin</button>
+              <button class="action-btn" id="deBracketBtn"><i class="fa-regular fa-diagram-nested"></i> Sinh Double Elimination</button>
+              <button class="action-btn" id="formatSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình</button>
+              <button class="action-btn" id="groupClearBtn"><i class="fa-regular fa-eraser"></i> Xóa bảng</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Kết quả chia bảng &amp; BXH điểm</h4>
+            <div id="groupResult" class="admin-list"><div class="admin-empty">Chưa chia bảng.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Lịch Round-Robin / Nhánh DE</h4>
+            <div id="rrScheduleList" class="admin-list"><div class="admin-empty">Chưa sinh lịch.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-live">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-tower-broadcast"></i> Công cụ Giám sát &amp; Bàn Trọng tài</h3>
+          <div class="admin-stats">
+            <div class="admin-stat-card"><div class="admin-stat-value" id="liveActiveMatches">0</div><div class="admin-stat-label">Trận đang đấu</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="liveWaiting">0</div><div class="admin-stat-label">Chờ bắt đầu</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="liveFinished">0</div><div class="admin-stat-label">Đã xong</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="liveAlertCount">0</div><div class="admin-stat-label">Cảnh báo</div></div>
+          </div>
+          <div class="admin-toolbar">
+            <button class="action-btn" id="liveRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới giám sát</button>
+            <button class="action-btn" id="liveAutoRefreshBtn"><i class="fa-regular fa-clock"></i> Tự làm mới: Tắt</button>
+          </div>
+          <div class="admin-card">
+            <h4>Xem trận trực tiếp</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã phòng</label>
+                <input type="text" id="adminWatchCode" placeholder="VD: BPFYM" maxlength="12" autocomplete="off">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="adminWatchBtn"><i class="fa-regular fa-eye"></i> Xem trực tiếp trên bàn chính</button>
+            </div>
+            <div class="sub" style="font-size:12px;margin-top:8px;color:var(--muted);">Đóng panel admin và mở chế độ xem (chỉ xem, không đi được). Quân cờ trượt mượt theo nước thật.</div>
+          </div>
+          <div class="admin-card">
+            <h4>Ma trận bàn cờ (Grid Monitor)</h4>
+            <div class="live-grid" id="liveGrid"><div class="admin-empty">Không có bàn đang theo dõi.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Cảnh báo bất thường</h4>
+            <div class="admin-list" id="liveAlertList"><div class="admin-empty">Không có cảnh báo.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Chat kỹ thuật</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Đích (để trống = toàn hệ thống)</label>
+                <input type="text" id="techChatTarget" placeholder="Mã phòng / mã trận">
+              </div>
+              <div class="admin-field">
+                <label>Nội dung</label>
+                <input type="text" id="techChatMsg" placeholder="Bàn 3 chú ý còn 2 phút…">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="techChatSendBtn"><i class="fa-regular fa-paper-plane"></i> Gửi</button>
+              <button class="action-btn" id="techChatBroadcastBtn"><i class="fa-regular fa-bullhorn"></i> Broadcast tất cả phòng</button>
+            </div>
+            <div class="admin-list" id="techChatLog" style="margin-top:10px;"><div class="admin-empty">Chưa có tin nhắn kỹ thuật.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Danh sách trận</h4>
+            <div class="admin-list" id="liveMatchList"><div class="admin-empty">Không có trận đang theo dõi.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-broadcast">
+          <!-- theme pick for broadcast -->
+
+          <h3 class="admin-sec-title"><i class="fa-regular fa-tv"></i> Quản lý Khán giả &amp; Truyền thông</h3>
+          
+          <div class="admin-card">
+            <h4><i class="fa-regular fa-palette"></i> Theme gợi ý / gắn thông báo</h4>
+            <div class="admin-field">
+              <label>Chọn theme</label>
+              <select id="bcThemeSelect"><option value="">— Không chọn —</option></select>
+            </div>
+          </div>
+<div class="admin-card">
+            <h4>Cấu hình phát sóng</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Trận / Phòng nổi bật</label>
+                <input type="text" id="bcFeatured" placeholder="Mã phòng hoặc mã trận">
+              </div>
+              <div class="admin-field">
+                <label>Tiêu đề banner</label>
+                <input type="text" id="bcTitle" placeholder="Chung kết Giải Hạ Long 2026">
+              </div>
+              <div class="admin-field">
+                <label>Link stream (YouTube/FB…)</label>
+                <input type="url" id="bcStreamUrl" placeholder="https://…">
+              </div>
+              <div class="admin-field">
+                <label>Chế độ khán giả</label>
+                <select id="bcSpectatorMode">
+                  <option value="open">Mở tự do</option>
+                  <option value="link">Chỉ qua link</option>
+                  <option value="closed">Đóng</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Theme mặc định màn cả 2</label>
+                <input type="text" id="bcThemeBoth" placeholder="wood / jade / marble…" value="wood">
+              </div>
+              <div class="admin-field">
+                <label>Theme màn Đỏ (để trống = theo kỳ thủ)</label>
+                <input type="text" id="bcThemeRed" placeholder="theo kỳ thủ hoặc theme id">
+              </div>
+              <div class="admin-field">
+                <label>Theme màn Đen (để trống = theo kỳ thủ)</label>
+                <input type="text" id="bcThemeBlack" placeholder="theo kỳ thủ hoặc theme id">
+              </div>
+            </div>
+            <div class="admin-field" style="margin-top:8px;">
+              <label>Thông báo công khai (ticker)</label>
+              <input type="text" id="bcTicker" placeholder="Vòng bán kết bắt đầu lúc 14:00…">
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="bcSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình phát</button>
+              <button class="action-btn" id="bcPushTickerBtn"><i class="fa-regular fa-bullhorn"></i> Đẩy thông báo</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Caster Mode (Bình luận viên)</h4>
+            <div class="sub" style="font-size:12.5px; margin:0 0 8px 0;">Tài khoản role <b>caster</b> có thể xem + livestream. Gán phòng cho caster:</div>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã kỳ thủ caster</label>
+                <input type="text" id="casterPlayerCode" placeholder="P001">
+              </div>
+              <div class="admin-field">
+                <label>Mã phòng được gán</label>
+                <input type="text" id="casterRoomCode" placeholder="ABC12">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="casterAssignBtn"><i class="fa-regular fa-microphone"></i> Gán caster</button>
+            </div>
+            <div class="admin-list" id="casterList" style="margin-top:8px;"><div class="admin-empty">Chưa gán caster.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Bình chọn &amp; Dự đoán (Polls)</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Câu hỏi poll</label>
+                <input type="text" id="pollQuestion" placeholder="Ai thắng trận chung kết?">
+              </div>
+              <div class="admin-field">
+                <label>Phương án A</label>
+                <input type="text" id="pollOptA" placeholder="Kỳ thủ Đỏ">
+              </div>
+              <div class="admin-field">
+                <label>Phương án B</label>
+                <input type="text" id="pollOptB" placeholder="Kỳ thủ Đen">
+              </div>
+              <div class="admin-field">
+                <label>Gắn phòng / trận</label>
+                <input type="text" id="pollMatch" placeholder="Mã phòng (tuỳ chọn)">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="pollCreateBtn"><i class="fa-regular fa-chart-bar"></i> Tạo poll</button>
+              <button class="action-btn" id="pollCloseBtn"><i class="fa-regular fa-lock"></i> Đóng poll đang mở</button>
+            </div>
+            <div class="admin-list" id="pollList" style="margin-top:8px;"><div class="admin-empty">Chưa có poll.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Link xem nhanh</h4>
+            <div class="join-row">
+              <input type="text" id="bcShareLink" readonly placeholder="Chọn trận nổi bật để sinh link">
+              <button class="action-btn" id="bcCopyLinkBtn"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+            <div id="bcQrBox" class="qr-code-box" style="margin-top:10px; display:none;"></div>
+          </div>
+          <div class="admin-card">
+            <h4>Lịch sử thông báo</h4>
+            <div class="admin-list" id="bcLogList"><div class="admin-empty">Chưa có thông báo.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-roles">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-user-shield"></i> Quản lý vai trò người dùng</h3>
+          <div class="admin-card">
+            <h4>Mô tả quyền</h4>
+            <div class="admin-list" id="roleDescList">
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">player <span class="role-badge player">TUYỂN THỦ</span></div><div class="admin-item-meta">Thi đấu, đăng nhập bằng mã giải + ID + MK, vào bàn được gán.</div></div></div>
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">vip <span class="role-badge vip">VIP</span></div><div class="admin-item-meta">Như tuyển thủ, đánh dấu ưu tiên / khách mời.</div></div></div>
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">mod <span class="role-badge mod">MOD</span></div><div class="admin-item-meta">Điều phối viên — hỗ trợ BTC (gán phòng, nhắc bàn).</div></div></div>
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">caster <span class="role-badge caster">CASTER</span></div><div class="admin-item-meta">Bình luận viên — xem / gắn phòng livestream.</div></div></div>
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">admin <span class="role-badge admin">ADMIN PHỤ</span></div><div class="admin-item-meta">BTC phụ — hỗ trợ giải. <b>Không</b> tự mở panel website.</div></div></div>
+              <div class="admin-item"><div class="admin-item-main"><div class="admin-item-code">superadmin <span class="role-badge superadmin">ADMIN CHÍNH</span></div><div class="admin-item-meta">BTC chính — quyền cao nhất trên hệ thống giải. Chỉ session Admin website mới được gán/hạ role này.</div></div></div>
+            </div>
+            <div class="sub" style="font-size:12.5px;margin-top:10px;color:var(--muted);">
+              🔒 Bảo mật: chỉ khi đã đăng nhập <b>mật khẩu Admin website</b> mới được gán/đổi <code>admin</code> và <code>superadmin</code>.
+              Tài khoản superadmin không thể bị xóa khi còn là admin chính duy nhất.
+            </div>
+          </div>
+          
+          <div class="admin-card">
+            <h4>Gói thành viên (cửa hàng VIP)</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Loại thành viên</label>
+                <select id="vipPkgTier">
+                  <option value="bronze">THÀNH VIÊN ĐỒNG</option>
+                  <option value="silver">THÀNH VIÊN BẠC</option>
+                  <option value="gold">THÀNH VIÊN VÀNG</option>
+                  <option value="diamond">THÀNH VIÊN KIM CƯƠNG</option>
+                  <option value="elite">THÀNH VIÊN TINH ANH</option>
+                  <option value="vip">THÀNH VIÊN VIP</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Số ngày (0 = vĩnh viễn)</label>
+                <input type="number" id="vipPkgDays" min="0" max="3650" value="30">
+              </div>
+              <div class="admin-field">
+                <label>Giá (coin)</label>
+                <input type="number" id="vipPkgPrice" min="1" value="100">
+              </div>
+              <div class="admin-field">
+                <label>Thưởng coin thêm</label>
+                <input type="number" id="vipPkgBonus" min="0" value="0">
+              </div>
+              <div class="admin-field">
+                <label>Tên hiển thị (tuỳ chỉnh)</label>
+                <input type="text" id="vipPkgName" placeholder="Để trống = tên mặc định" maxlength="40">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="vipPkgRandomBtn" type="button"><i class="fa-solid fa-shuffle"></i> Random</button>
+              <button class="action-btn" id="vipPkgAddBtn"><i class="fa-regular fa-plus"></i> Thêm gói</button>
+            </div>
+            <div class="admin-list" id="vipPkgList" style="margin-top:10px;"><div class="admin-empty">Chưa có gói.</div></div>
+          </div>
+
+          <div class="admin-card">
+            <h4>Lọc &amp; thống kê</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Lọc theo vai trò</label>
+                <select id="roleFilter">
+                  <option value="">— Tất cả —</option>
+                  <option value="player">Tuyển thủ</option>
+                  <option value="vip">VIP</option>
+                  <option value="mod">Mod</option>
+                  <option value="caster">Caster</option>
+                  <option value="admin">Admin phụ</option>
+                  <option value="superadmin">Admin chính</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label>Tìm mã / tên</label>
+                <input type="text" id="roleSearch" placeholder="P001 hoặc tên…">
+              </div>
+            </div>
+            <div class="admin-stats" style="margin-top:12px;" id="roleStats">
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatPlayer">0</div><div class="admin-stat-label">Player</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatVip">0</div><div class="admin-stat-label">VIP</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatMod">0</div><div class="admin-stat-label">Mod</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatCaster">0</div><div class="admin-stat-label">Caster</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatAdmin">0</div><div class="admin-stat-label">Admin phụ</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="roleStatSuper">0</div><div class="admin-stat-label">Admin chính</div></div>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Danh sách tài khoản - đổi vai trò nhanh</h4>
+            <div class="admin-list" id="roleManageList"><div class="admin-empty">Chưa có tài khoản.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Gói VIP bán trong shop (ngày + coin)</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Tên gói</label>
+                <input type="text" id="vipPkgName" placeholder="VIP 3 ngày" maxlength="40">
+              </div>
+              <div class="admin-field">
+                <label>Số ngày</label>
+                <input type="number" id="vipPkgDays" value="3" min="1" max="365">
+              </div>
+              <div class="admin-field">
+                <label>Giá coin</label>
+                <input type="number" id="vipPkgPrice" value="50" min="1" max="99999">
+              </div>
+              <div class="admin-field">
+                <label>Coin thưởng kèm</label>
+                <input type="number" id="vipPkgBonus" value="0" min="0" max="9999">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="vipPkgAddBtn"><i class="fa-regular fa-plus"></i> Thêm gói VIP</button>
+              <button class="action-btn" id="vipPkgRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới</button>
+            </div>
+            <div class="admin-list" id="vipPkgList" style="margin-top:8px;"><div class="admin-empty">Chưa có gói.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Cấm chat toàn cục (nick / ID)</h4>
+            <div class="join-row" style="margin-bottom:8px;">
+              <input type="text" id="globalBanTarget" placeholder="Nick hoặc ID kỳ thủ" maxlength="24">
+              <button type="button" class="action-btn cheat-danger" id="globalBanBtn"><i class="fa-regular fa-ban"></i> Cấm</button>
+              <button type="button" class="action-btn" id="globalUnbanBtn"><i class="fa-regular fa-unlock"></i> Gỡ</button>
+            </div>
+            <div class="admin-list" id="globalBanList"><div class="admin-empty">Chưa có.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-chats">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-comments"></i> Quản lý Chat phòng</h3>
+          <div class="admin-toolbar">
+            <button class="action-btn" id="adminChatRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới danh sách</button>
+            <button class="action-btn cheat-danger" id="adminChatClearRoomBtn"><i class="fa-regular fa-trash"></i> Xóa hết chat phòng đang chọn</button>
+          </div>
+          <div class="admin-form-grid">
+            <div class="admin-card">
+              <h4>Phòng có chat</h4>
+              <div class="admin-list" id="adminChatRoomList" style="max-height:min(480px,55vh);"><div class="admin-empty">Đang tải…</div></div>
+            </div>
+            <div class="admin-card">
+              <h4>Tin nhắn · phòng <span id="adminChatRoomLabel">—</span></h4>
+              <div class="admin-list" id="adminChatMsgList" style="max-height:min(480px,55vh);"><div class="admin-empty">Chọn một phòng bên trái.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-coins">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-coins"></i> Quản lý Coin &amp; Điểm danh</h3>
+          <div class="admin-stats">
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatToday">0</div><div class="admin-stat-label">Điểm danh hôm nay</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatTodayReward">0</div><div class="admin-stat-label">Coin điểm danh hôm nay</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatTotal">0</div><div class="admin-stat-label">Tổng coin đang có</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatPlayers">0</div><div class="admin-stat-label">Thành viên có coin</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatPveToday">0</div><div class="admin-stat-label">Coin vs máy hôm nay</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatBetToday">0</div><div class="admin-stat-label">Coin cược PvP hôm nay</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatAuctionToday">0</div><div class="admin-stat-label">Coin đấu giá hôm nay</div></div>
+            <div class="admin-stat-card"><div class="admin-stat-value" id="coinStatShopToday">0</div><div class="admin-stat-label">Coin shop hôm nay</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Cộng coin cho kỳ thủ</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã kỳ thủ (ID)</label>
+                <input type="text" id="coinGrantCode" placeholder="P001 / XK0002" maxlength="12">
+              </div>
+              <div class="admin-field">
+                <label>Số coin (+)</label>
+                <input type="number" id="coinGrantAmount" value="10" min="1" max="9999">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="coinGrantBtn"><i class="fa-regular fa-plus"></i> Cộng coin</button>
+              <button class="action-btn cheat-danger" id="coinDeductBtn"><i class="fa-regular fa-minus"></i> Trừ coin</button>
+              <button class="action-btn" id="coinRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới</button>
+            </div>
+            <div class="admin-field" style="margin-top:12px;">
+              <label>Tặng vật phẩm (chọn trong danh sách · mã kỳ thủ ở trên)</label>
+              <div class="coin-item-scroll-wrap">
+                <select id="shopGrantItem" class="coin-item-select" size="12">
+                  <option value="">— Chọn vật phẩm —</option>
+                </select>
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="shopGrantBtn"><i class="fa-regular fa-gift"></i> Tặng vật phẩm</button>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Thống kê coin trong ngày</h4>
+            <div class="admin-list" id="coinDailyDetail"><div class="admin-empty">Đang tải…</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Đã điểm danh hôm nay</h4>
+            <div class="admin-list coin-admin-scroll" id="coinCheckInList"><div class="admin-empty">Chưa có.</div></div>
+          </div>
+          <div class="admin-card">
+            <h4>Top coin</h4>
+            <div class="admin-list coin-admin-scroll" id="coinTopList"><div class="admin-empty">Chưa có.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-giftcodes">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-ticket"></i> Quản lý Giftcode</h3>
+          <div class="admin-card">
+            <h4>Tạo giftcode mới</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã (để trống = random)</label>
+                <input type="text" id="gcCode" placeholder="VD: HELLO2026" maxlength="24">
+              </div>
+              <div class="admin-field">
+                <label>Số lần dùng tối đa</label>
+                <input type="number" id="gcMaxUses" value="1" min="1" max="9999">
+              </div>
+              <div class="admin-field">
+                <label>Hết hạn (ngày)</label>
+                <input type="date" id="gcExpire">
+              </div>
+              <div class="admin-field">
+                <label>Coin thưởng</label>
+                <input type="number" id="gcCoins" value="0" min="0" max="99999">
+              </div>
+              <div class="admin-field">
+                <label>Lượt hack (+)</label>
+                <input type="number" id="gcCheatUses" value="0" min="0" max="999">
+              </div>
+              <div class="admin-field">
+                <label>Theme ID (nếu có)</label>
+                <input type="text" id="gcThemeId" placeholder="vd: jade / arsenal">
+              </div>
+              <div class="admin-field" style="grid-column:1/-1;">
+                <label>Vật phẩm cửa hàng (chọn nhiều)</label>
+                <select id="gcItemMulti" multiple size="8" style="width:100%;min-height:120px;"></select>
+                <div class="sub" style="font-size:11px;margin-top:4px;">Giữ Ctrl/Cmd để chọn nhiều. Hoặc nhập ID thủ công:</div>
+                <input type="text" id="gcItemId" placeholder="vd: gift_rose" style="margin-top:4px;">
+              </div>
+              <div class="admin-field">
+                <label>Số lượng mỗi món</label>
+                <input type="number" id="gcItemQty" value="1" min="1" max="99">
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="gcCreateBtn"><i class="fa-regular fa-plus"></i> Tạo giftcode</button>
+              <button class="action-btn" id="gcRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới danh sách</button>
+            </div>
+            <div class="admin-status" id="gcStatus" style="margin-top:8px;"></div>
+                      </div>
+          <div class="admin-card">
+            <h4>Danh sách giftcode</h4>
+            <div class="admin-list" id="gcList"><div class="admin-empty">Chưa có.</div></div>
+          </div>
+        </div>
+
+        
+        <div class="admin-section" id="adminSec-clans">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-people-group"></i> Quản lý Clan</h3>
+          <div class="admin-card">
+            <h4>Danh sách clan</h4>
+            <div class="admin-toolbar">
+              <button class="action-btn" id="adminClanRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới</button>
+            </div>
+            <div class="admin-list" id="adminClanList"><div class="admin-empty">Chưa có clan.</div></div>
+          </div>
+        </div>
+
+        <div class="admin-section" id="adminSec-system">
+          <h3 class="admin-sec-title"><i class="fa-regular fa-gear"></i> Hệ thống &amp; Bảo mật</h3>
+          <div class="admin-card">
+            <h4>Giới hạn truy cập &amp; Đăng ký</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Số khách tối đa đồng thời (1–100)</label>
+                <input type="number" id="accessMaxGuests" min="1" max="100" value="50">
+              </div>
+              <div class="admin-field">
+                <label>Mở đăng ký tài khoản</label>
+                <select id="accessRegOpen">
+                  <option value="1">Mở đăng ký</option>
+                  <option value="0">Đóng đăng ký</option>
+                </select>
+              </div>
+            </div>
+            <div class="admin-stats" style="margin-top:12px;">
+              <div class="admin-stat-card"><div class="admin-stat-value" id="accessStatGuests">0</div><div class="admin-stat-label">Khách online</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="accessStatPlayers">0</div><div class="admin-stat-label">Kỳ thủ online</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="accessStatMax">50</div><div class="admin-stat-label">Giới hạn khách</div></div>
+              <div class="admin-stat-card"><div class="admin-stat-value" id="accessStatReg">—</div><div class="admin-stat-label">Đăng ký</div></div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:10px;">
+              <button class="action-btn" id="accessSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình</button>
+              <button class="action-btn" id="accessRefreshBtn"><i class="fa-regular fa-arrows-rotate"></i> Làm mới</button>
+            </div>
+            <div class="admin-status" id="accessStatus" style="margin-top:8px;"></div>
+            <div class="sub" style="font-size:12px;margin-top:8px;color:var(--muted);">
+              Khách (chưa đăng nhập) chiếm slot; đóng tab là mất slot. Kỳ thủ / role đã đăng nhập không bị giới hạn và giữ phiên tối đa 30 ngày.
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Đổi mật khẩu Admin (site)</h4>
+            <div class="admin-changepwd" id="adminChangePwdBox">
+              <div class="join-row" style="margin-bottom:6px;">
+                <input type="password" id="adminNewPwd" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)" autocomplete="new-password">
+              </div>
+              <div class="join-row" style="margin-bottom:8px;">
+                <input type="password" id="adminNewPwd2" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
+              </div>
+              <div class="admin-toolbar" style="margin-bottom:0;">
+                <button class="action-btn" id="adminSavePwdBtn"><i class="fa-regular fa-check"></i> Lưu mật khẩu admin</button>
+              </div>
+              <div class="admin-status" id="adminPwdStatus" style="margin-top:8px;"></div>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h4>Đổi mật khẩu tài khoản (theo mã kỳ thủ)</h4>
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label>Mã kỳ thủ / ID</label>
+                <input type="text" id="rolePwdCode" placeholder="P001">
+              </div>
+              <div class="admin-field">
+                <label>Mật khẩu mới</label>
+                <input type="text" id="rolePwdNew" placeholder="Tối thiểu 4 ký tự">
+              </div>
+              <div class="admin-field">
+                <label>Đổi vai trò (tuỳ chọn)</label>
+                <select id="rolePwdRole">
+                  <option value="">— Giữ nguyên —</option>
+                  <option value="player">Tuyển thủ</option>
+                  <option value="vip">VIP</option>
+                  <option value="mod">Mod</option>
+                  <option value="caster">Caster</option>
+                  <option value="admin">Admin phụ</option>
+                  <option value="superadmin">Admin chính</option>
+                </select>
+              </div>
+            </div>
+            <div class="admin-toolbar" style="margin-top:8px;">
+              <button class="action-btn" id="rolePwdSaveBtn"><i class="fa-regular fa-key"></i> Cập nhật MK / vai trò</button>
+            </div>
+            <div class="admin-status" id="rolePwdStatus" style="margin-top:8px;"></div>
+          </div>
+          <div class="admin-card">
+            <h4>Dữ liệu Firebase</h4>
+            <div class="admin-toolbar">
+              <button class="action-btn cheat-danger" id="adminDeleteAllRoomsBtn"><i class="fa-regular fa-trash"></i> Xóa tất cả phòng</button>
+              <button class="action-btn cheat-danger" id="adminDeleteAllSavesBtn"><i class="fa-regular fa-trash"></i> Xóa tất cả ván lưu</button>
+              <button class="action-btn cheat-danger" id="adminWipeTournamentBtn"><i class="fa-regular fa-bomb"></i> Xóa giải (giữ kỳ thủ)</button>
+            </div>
+            <div class="admin-list" id="adminSavesList" style="margin-top:10px;"><div class="admin-empty">Ván đã lưu sẽ hiện ở đây.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="replayControlBar" style="display:none;"></div>
+<div id="replayShareBar" class="replay-share" style="display:none;">
+  <label>Link xem lại</label>
+  <div class="join-row">
+    <input type="text" id="replayShareUrl" readonly>
+    <button type="button" class="action-btn" id="replayCopyBtn" onclick="copyReplayLink && copyReplayLink()">Copy</button>
+    <button type="button" class="action-btn" id="replayShareCloseBtn" title="Đóng" onclick="closeReplayShareBar()"><i class="fa-regular fa-xmark"></i> Đóng</button>
+  </div>
+</div>
+
+<!-- Weekly security code 6 boxes -->
+<div class="modal-overlay" id="weeklyCodeOverlay">
+  <div class="modal-box" style="max-width:360px;">
+    <h2><i class="fa-regular fa-shield-keyhole"></i> Mã bảo mật 6 số</h2>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px;">Mỗi 7 ngày tạo mã 6 số. Admin dùng mã này hỗ trợ đổi mật khẩu.</p>
+    <div class="pin-boxes" id="weeklyPinBoxes">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="0" placeholder="-">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="1" placeholder="-">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="2" placeholder="-">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="3" placeholder="-">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="4" placeholder="-">
+      <input class="pin-box" type="text" inputmode="numeric" maxlength="1" data-i="5" placeholder="-">
+    </div>
+    <div class="modal-btn-row" style="margin-top:14px;">
+      <button type="button" class="action-btn" id="weeklyCodeSaveBtn"><i class="fa-regular fa-check"></i> Lưu mã</button>
+      <button type="button" class="action-btn modal-btn-secondary" id="weeklyCodeCancelBtn"><i class="fa-regular fa-xmark"></i> Để sau</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+<div id="clanMineOverlay" class="clan-modal-overlay" hidden>
+  <div class="clan-modal-box" role="dialog" aria-modal="true">
+    <button type="button" class="clan-modal-x" id="clanMineCloseBtn" aria-label="Đóng">&times;</button>
+    <h2><i class="fa-solid fa-people-group"></i> Clan của tôi</h2>
+    <div id="clanMineBody"><div class="admin-empty">Đang tải…</div></div>
+  </div>
+</div>
+
+<script src="catalog.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
