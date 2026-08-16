@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<defs>
+<radialGradient id="wood" cx="38%" cy="35%" r="75%">
+<stop offset="0%" stop-color="#F7E8C7"/>
+<stop offset="60%" stop-color="#EBD2A5"/>
+<stop offset="100%" stop-color="#C8A56E"/>
+</radialGradient>
+<radialGradient id="hl" cx="32%" cy="28%" r="45%">
+<stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<filter id="sh" x="-40%" y="-40%" width="180%" height="180%">
+<feDropShadow dx="0" dy="2.4" stdDeviation="3.5999999999999996" flood-color="#000000" flood-opacity="0.4"/>
+</filter>
+</defs>
+<circle cx="100.0" cy="100.0" r="92.0" fill="#B01818" filter="url(#sh)"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="url(#wood)"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="none" stroke="#B01818" stroke-width="5.6000000000000005"/>
+<circle cx="100.0" cy="100.0" r="82.8" fill="none" stroke="#6E0A0A" stroke-width="1.2"/>
+<circle cx="100.0" cy="100.0" r="77.28" fill="none" stroke="#B01818" stroke-width="0.8"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="url(#hl)"/>
+<g transform="translate(100.0,100.0) scale(0.136686) translate(-500,-500)"><g transform="translate(0.000000,1000.000000) scale(0.100000,-0.100000)"
+fill="#b71616" stroke="none">
+<path d="M2321 9318 c-5 -29 -20 -102 -31 -163 -292 -1513 -931 -3238 -1657
+-4478 -42 -70 -74 -129 -72 -130 62 -41 93 -58 103 -54 77 30 621 478 871 719
+l115 110 0 -2346 0 -2346 128 0 c274 0 508 36 735 111 161 52 376 159 433 213
+l44 43 0 2707 c0 2156 3 2707 13 2711 6 2 37 11 68 19 87 24 199 112 199 155
+0 4 -73 33 -162 65 -90 33 -197 72 -239 88 l-76 29 98 164 c292 488 593 1106
+793 1628 l38 97 62 0 c121 0 228 51 285 136 29 45 30 49 14 56 -18 8 -1676
+501 -1726 513 -24 6 -26 4 -36 -47z"/>
+<path d="M5370 7661 l0 -1551 -1080 0 c-594 0 -1080 -4 -1080 -8 0 -8 7 -33
+51 -184 l20 -68 1044 0 1045 0 0 -2245 0 -2245 -950 0 c-898 0 -950 -1 -949
+-17 0 -10 15 -67 33 -128 l32 -110 2794 0 c3117 0 2859 -6 2937 72 51 50 53
+69 14 103 -259 224 -710 593 -1084 887 l-169 133 -22 -28 c-12 -15 -174 -226
+-360 -470 l-337 -442 -260 0 -259 0 0 2245 0 2245 1248 2 1247 3 50 23 c82 38
+130 97 104 129 -32 38 -705 588 -1115 910 l-141 111 -348 -459 -349 -459 -348
+0 -348 0 2 1331 3 1332 68 19 c127 34 196 82 233 163 34 71 32 93 -8 99 -18 3
+-393 37 -833 76 -440 38 -819 72 -842 75 l-43 6 0 -1550z"/>
+</g></g>
+</svg>

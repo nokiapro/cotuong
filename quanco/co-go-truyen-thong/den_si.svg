@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<defs>
+<radialGradient id="wood" cx="38%" cy="35%" r="75%">
+<stop offset="0%" stop-color="#F7E8C7"/>
+<stop offset="60%" stop-color="#EBD2A5"/>
+<stop offset="100%" stop-color="#C8A56E"/>
+</radialGradient>
+<radialGradient id="hl" cx="32%" cy="28%" r="45%">
+<stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<filter id="sh" x="-40%" y="-40%" width="180%" height="180%">
+<feDropShadow dx="0" dy="2.4" stdDeviation="3.5999999999999996" flood-color="#000000" flood-opacity="0.4"/>
+</filter>
+</defs>
+<circle cx="100.0" cy="100.0" r="92.0" fill="#191919" filter="url(#sh)"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="url(#wood)"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="none" stroke="#191919" stroke-width="5.6000000000000005"/>
+<circle cx="100.0" cy="100.0" r="82.8" fill="none" stroke="#000000" stroke-width="1.2"/>
+<circle cx="100.0" cy="100.0" r="77.28" fill="none" stroke="#191919" stroke-width="0.8"/>
+<circle cx="100.0" cy="100.0" r="92.0" fill="url(#hl)"/>
+<g transform="translate(100.0,100.0) scale(0.147291) translate(-500,-500)"><g transform="translate(0.000000,1000.000000) scale(0.100000,-0.100000)"
+fill="#141414" stroke="none">
+<path d="M4250 7393 l0 -1663 -1769 0 -1769 0 37 -127 37 -128 1732 -3 1732
+-2 0 -2135 0 -2135 -1526 0 c-1285 0 -1525 -2 -1521 -14 3 -7 20 -66 38 -130
+l33 -116 3725 2 c3572 3 3728 4 3773 21 51 20 112 74 121 107 4 17 -10 34 -71
+86 -242 208 -1269 1014 -1291 1014 -3 0 -177 -218 -385 -485 l-380 -485 -523
+0 -523 0 0 2135 0 2135 1663 0 c1717 0 1740 1 1818 40 42 22 89 74 89 99 0 29
+-570 490 -1190 963 l-165 126 -376 -482 -375 -481 -732 -3 -732 -2 2 1447 3
+1447 62 13 c142 28 227 93 257 194 9 29 14 54 12 56 -2 2 -409 41 -905 86
+l-901 83 0 -1663z"/>
+</g></g>
+</svg>
